@@ -1,6 +1,4 @@
-# 🏨 ReservaCerta
-
-> **Machine Learning para previsão de check-in e identificação de reservas com risco de cancelamento/no-show.**
+# 🚗 PreviVia
 
 ## 👥 Equipe
 
@@ -12,22 +10,20 @@
 
 ## 🎯 Objetivo
 
-Desenvolver um modelo de **Machine Learning** capaz de prever a probabilidade de um cliente realizar o **check-in** ou cancelar a reserva/**no-show**.
-
-A solução busca auxiliar hotéis na identificação antecipada de reservas de maior risco, contribuindo para um melhor planejamento da ocupação e redução de perdas de receita.
+Machine Learning para identificar antecipadamente quais condições e locais estão associados a acidentes de maior gravidade, auxiliando na priorização de ações de segurança viária.
 
 ---
 
 ## 🏗️ Arquitetura
 
 ```text
-              API
+              CSV
                │
                ▼
             Python
                │
                ▼
-          Parquet (Raw)
+            Parquet
                │
                ▼
             DuckDB
@@ -43,7 +39,7 @@ A solução busca auxiliar hotéis na identificação antecipada de reservas de 
        Machine Learning
                │
                ▼
-       Modelo de Predição
+           Avaliação
 ```
 
 ---
@@ -51,13 +47,13 @@ A solução busca auxiliar hotéis na identificação antecipada de reservas de 
 ## 🔄 Etapas
 
 **1. Ingestão**
-Dados coletados via API utilizando Python e armazenados em Parquet.
+Dados coletados via CSV utilizando Python e armazenando em Parquet.
 
 **2. Tratamento & EDA**
 Pandas para limpeza, análise exploratória e Feature Engineering.
 
 **3. Machine Learning**
-Classificação binária para prever **check-in vs. cancelamento/no-show**.
+Descobrir quais fatores estão associados à gravidade
 
 **4. Avaliação**
 Comparação dos modelos utilizando **Precision, Recall, F1-Score e ROC-AUC**.
@@ -75,4 +71,4 @@ Streamlit para apresentação dos indicadores, análises e previsões.
 
 ## 🎓 Projeto Acadêmico
 
-Projeto desenvolvido no **Mackenzie**, aplicando conceitos de **Engenharia de Dados, Análise Exploratória e Machine Learning** a um problema do setor de hospedagem.
+Projeto desenvolvido no **Mackenzie**, aplicando conceitos de **Engenharia de Dados, Análise Exploratória e Machine Learning** a um problema do setor de viário.

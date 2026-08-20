@@ -12,6 +12,8 @@
 
 Machine Learning para identificar antecipadamente quais condições e locais estão associados a acidentes de maior gravidade, auxiliando na priorização de ações de segurança viária.
 
+**Origem:** https://www.gov.br/prf/pt-br/acesso-a-informacao/dados-abertos/dados-abertos-da-prf
+
 ---
 
 ## 🏗️ Arquitetura

@@ -1,3 +1,8 @@
 pandas
 pyarrow
 numpy
+duckdb
+scipy
+scikit-learn
+streamlit
+plotly

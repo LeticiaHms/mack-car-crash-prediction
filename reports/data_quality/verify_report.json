@@ -1,0 +1,274 @@
+{
+  "checks": [
+    {
+      "check": "quantidade_colunas",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "esperado 30, obtido 30"
+    },
+    {
+      "check": "schema_nomes_e_ordem",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "esperado ['id', 'data_inversa', 'dia_semana', 'horario', 'uf', 'br', 'km', 'municipio', 'causa_acidente', 'tipo_acidente', 'classificacao_acidente', 'fase_dia', 'sentido_via', 'condicao_metereologica', 'tipo_pista', 'tracado_via', 'uso_solo', 'pessoas', 'mortos', 'feridos_leves', 'feridos_graves', 'ilesos', 'ignorados', 'feridos', 'veiculos', 'latitude', 'longitude', 'regional', 'delegacia', 'uop'], obtido ['id', 'data_inversa', 'dia_semana', 'horario', 'uf', 'br', 'km', 'municipio', 'causa_acidente', 'tipo_acidente', 'classificacao_acidente', 'fase_dia', 'sentido_via', 'condicao_metereologica', 'tipo_pista', 'tracado_via', 'uso_solo', 'pessoas', 'mortos', 'feridos_leves', 'feridos_graves', 'ilesos', 'ignorados', 'feridos', 'veiculos', 'latitude', 'longitude', 'regional', 'delegacia', 'uop']"
+    },
+    {
+      "check": "dtype_id",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_data_inversa",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "datetime64[us]"
+    },
+    {
+      "check": "dtype_latitude",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "float64"
+    },
+    {
+      "check": "dtype_longitude",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "float64"
+    },
+    {
+      "check": "dtype_km",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "float64"
+    },
+    {
+      "check": "dtype_pessoas",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_mortos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_feridos_leves",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_feridos_graves",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_ilesos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_ignorados",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_feridos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "dtype_veiculos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "Int64"
+    },
+    {
+      "check": "unicidade_id",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 ids duplicados"
+    },
+    {
+      "check": "linhas_totalmente_duplicadas",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 linhas idênticas em todas as colunas"
+    },
+    {
+      "check": "sem_nulos_id",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "sem_nulos_data_inversa",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "sem_nulos_latitude",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "sem_nulos_longitude",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "sem_nulos_km",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "sem_nulos_classificacao_acidente",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "nulos_regional_dentro_do_esperado",
+      "ok": true,
+      "severidade": "aviso",
+      "detalhe": "1.00% nulos (limite tolerado: 5.0%)"
+    },
+    {
+      "check": "nulos_delegacia_dentro_do_esperado",
+      "ok": true,
+      "severidade": "aviso",
+      "detalhe": "1.03% nulos (limite tolerado: 5.0%)"
+    },
+    {
+      "check": "nulos_uop_dentro_do_esperado",
+      "ok": true,
+      "severidade": "aviso",
+      "detalhe": "1.08% nulos (limite tolerado: 5.0%)"
+    },
+    {
+      "check": "anos_dentro_do_esperado",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "anos encontrados: [2022, 2023, 2024, 2025, 2026]"
+    },
+    {
+      "check": "dias_semana_validos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "valores inesperados: set()"
+    },
+    {
+      "check": "ufs_validas",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "UFs inválidas: set()"
+    },
+    {
+      "check": "latitude_dentro_do_brasil",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "[-33.689819, 4.47628443]"
+    },
+    {
+      "check": "longitude_dentro_do_brasil",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "[-72.83575058, -32.406822]"
+    },
+    {
+      "check": "nao_negativo_pessoas",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 1"
+    },
+    {
+      "check": "nao_negativo_mortos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 0"
+    },
+    {
+      "check": "nao_negativo_feridos_leves",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 0"
+    },
+    {
+      "check": "nao_negativo_feridos_graves",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 0"
+    },
+    {
+      "check": "nao_negativo_ilesos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 0"
+    },
+    {
+      "check": "nao_negativo_ignorados",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 0"
+    },
+    {
+      "check": "nao_negativo_feridos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 0"
+    },
+    {
+      "check": "nao_negativo_veiculos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "mínimo observado: 1"
+    },
+    {
+      "check": "consistencia_feridos_leves_mais_graves_igual_feridos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 divergências"
+    },
+    {
+      "check": "consistencia_pessoas_igual_soma_categorias",
+      "ok": false,
+      "severidade": "aviso",
+      "detalhe": "16817 registros (5.39%) com 'pessoas' != soma das categorias (inconsistência de origem na base da PRF, documentada e monitorada, não corrigida)"
+    },
+    {
+      "check": "consistencia_classificacao_vs_vitimas",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 divergências"
+    }
+  ],
+  "status": "PASSOU",
+  "linhas": 311751,
+  "colunas": 30,
+  "missing_values": {
+    "regional": {
+      "nulos": 3132,
+      "pct": 1.005
+    },
+    "delegacia": {
+      "nulos": 3220,
+      "pct": 1.033
+    },
+    "uop": {
+      "nulos": 3365,
+      "pct": 1.079
+    }
+  },
+  "pct_pessoas_divergente_da_soma": 5.394
+}

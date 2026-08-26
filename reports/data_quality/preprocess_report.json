@@ -1,0 +1,62 @@
+{
+  "linhas_entrada": 311751,
+  "ids_nao_parseaveis": 0,
+  "classificacao_ausente_antes": 5,
+  "classificacao_ausente_depois": 0,
+  "duplicatas_por_id_removidas": 0,
+  "linhas_completamente_duplicadas": 0,
+  "linhas_pessoas_divergente_da_soma": 16817,
+  "outliers_iqr": {
+    "km": {
+      "q1": 77.0,
+      "q3": 407.0,
+      "lower": -418.0,
+      "upper": 902.0,
+      "outliers": 3307
+    },
+    "pessoas": {
+      "q1": 2.0,
+      "q3": 3.0,
+      "lower": 0.5,
+      "upper": 4.5,
+      "outliers": 27770
+    },
+    "mortos": {
+      "q1": 0.0,
+      "q3": 0.0,
+      "lower": 0.0,
+      "upper": 0.0,
+      "outliers": 22421
+    },
+    "feridos_leves": {
+      "q1": 0.0,
+      "q3": 1.0,
+      "lower": -1.5,
+      "upper": 2.5,
+      "outliers": 13156
+    },
+    "feridos_graves": {
+      "q1": 0.0,
+      "q3": 0.0,
+      "lower": 0.0,
+      "upper": 0.0,
+      "outliers": 70600
+    },
+    "veiculos": {
+      "q1": 1.0,
+      "q3": 2.0,
+      "lower": -0.5,
+      "upper": 3.5,
+      "outliers": 22491
+    }
+  },
+  "linhas_saida": 311751,
+  "linhas_brutas_carregadas": 311751,
+  "arquivos_processados": [
+    "dados/datatran2022.csv",
+    "dados/datatran2023.csv",
+    "dados/datatran2024.csv",
+    "dados/datatran2025.csv",
+    "dados/datatran2026.csv"
+  ]
+}

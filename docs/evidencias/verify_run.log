@@ -1,0 +1,85 @@
+2026-08-26 01:42:01,429 - INFO - Carregados 311751 registros de dados/curated/acidentes_2022_2026.parquet
+2026-08-26 01:42:01,429 - INFO - ✓ quantidade_colunas
+2026-08-26 01:42:01,429 - INFO - ✓ schema_nomes_e_ordem
+2026-08-26 01:42:01,430 - INFO - ✓ dtype_id
+2026-08-26 01:42:01,430 - INFO - ✓ dtype_data_inversa
+2026-08-26 01:42:01,431 - INFO - ✓ dtype_latitude
+2026-08-26 01:42:01,431 - INFO - ✓ dtype_longitude
+2026-08-26 01:42:01,431 - INFO - ✓ dtype_km
+2026-08-26 01:42:01,431 - INFO - ✓ dtype_pessoas
+2026-08-26 01:42:01,432 - INFO - ✓ dtype_mortos
+2026-08-26 01:42:01,432 - INFO - ✓ dtype_feridos_leves
+2026-08-26 01:42:01,432 - INFO - ✓ dtype_feridos_graves
+2026-08-26 01:42:01,432 - INFO - ✓ dtype_ilesos
+2026-08-26 01:42:01,432 - INFO - ✓ dtype_ignorados
+2026-08-26 01:42:01,433 - INFO - ✓ dtype_feridos
+2026-08-26 01:42:01,433 - INFO - ✓ dtype_veiculos
+2026-08-26 01:42:01,445 - INFO - ✓ unicidade_id
+2026-08-26 01:42:01,664 - INFO - ✓ linhas_totalmente_duplicadas
+2026-08-26 01:42:01,675 - INFO - ✓ sem_nulos_id
+2026-08-26 01:42:01,676 - INFO - ✓ sem_nulos_data_inversa
+2026-08-26 01:42:01,676 - INFO - ✓ sem_nulos_latitude
+2026-08-26 01:42:01,677 - INFO - ✓ sem_nulos_longitude
+2026-08-26 01:42:01,677 - INFO - ✓ sem_nulos_km
+2026-08-26 01:42:01,678 - INFO - ✓ sem_nulos_classificacao_acidente
+2026-08-26 01:42:01,678 - INFO - ✓ nulos_regional_dentro_do_esperado
+2026-08-26 01:42:01,679 - INFO - ✓ nulos_delegacia_dentro_do_esperado
+2026-08-26 01:42:01,680 - INFO - ✓ nulos_uop_dentro_do_esperado
+2026-08-26 01:42:01,687 - INFO - ✓ anos_dentro_do_esperado
+2026-08-26 01:42:01,691 - INFO - ✓ dias_semana_validos
+2026-08-26 01:42:01,694 - INFO - ✓ ufs_validas
+2026-08-26 01:42:01,695 - INFO - ✓ latitude_dentro_do_brasil
+2026-08-26 01:42:01,697 - INFO - ✓ longitude_dentro_do_brasil
+2026-08-26 01:42:01,698 - INFO - ✓ nao_negativo_pessoas
+2026-08-26 01:42:01,698 - INFO - ✓ nao_negativo_mortos
+2026-08-26 01:42:01,699 - INFO - ✓ nao_negativo_feridos_leves
+2026-08-26 01:42:01,700 - INFO - ✓ nao_negativo_feridos_graves
+2026-08-26 01:42:01,701 - INFO - ✓ nao_negativo_ilesos
+2026-08-26 01:42:01,702 - INFO - ✓ nao_negativo_ignorados
+2026-08-26 01:42:01,703 - INFO - ✓ nao_negativo_feridos
+2026-08-26 01:42:01,704 - INFO - ✓ nao_negativo_veiculos
+2026-08-26 01:42:01,705 - INFO - ✓ consistencia_feridos_leves_mais_graves_igual_feridos
+2026-08-26 01:42:01,708 - WARNING - ⚠ consistencia_pessoas_igual_soma_categorias: 16817 registros (5.39%) com 'pessoas' != soma das categorias (inconsistência de origem na base da PRF, documentada e monitorada, não corrigida)
+2026-08-26 01:42:04,950 - INFO - ✓ consistencia_classificacao_vs_vitimas
+2026-08-26 01:42:04,951 - INFO - Relatório de verificação salvo em reports/data_quality/verify_report.json
+2026-08-26 01:42:04,951 - INFO - Parabéns! Todas as validações críticas passaram com sucesso.
+
+Resumo das informações do DataFrame curado:
+<class 'pandas.DataFrame'>
+RangeIndex: 311751 entries, 0 to 311750
+Data columns (total 30 columns):
+ #   Column                  Non-Null Count   Dtype         
+---  ------                  --------------   -----         
+ 0   id                      311751 non-null  Int64         
+ 1   data_inversa            311751 non-null  datetime64[us]
+ 2   dia_semana              311751 non-null  str           
+ 3   horario                 311751 non-null  str           
+ 4   uf                      311751 non-null  str           
+ 5   br                      311751 non-null  int64         
+ 6   km                      311751 non-null  float64       
+ 7   municipio               311751 non-null  str           
+ 8   causa_acidente          311751 non-null  str           
+ 9   tipo_acidente           311751 non-null  str           
+ 10  classificacao_acidente  311751 non-null  str           
+ 11  fase_dia                311751 non-null  str           
+ 12  sentido_via             311751 non-null  str           
+ 13  condicao_metereologica  311751 non-null  str           
+ 14  tipo_pista              311751 non-null  str           
+ 15  tracado_via             311751 non-null  str           
+ 16  uso_solo                311751 non-null  str           
+ 17  pessoas                 311751 non-null  Int64         
+ 18  mortos                  311751 non-null  Int64         
+ 19  feridos_leves           311751 non-null  Int64         
+ 20  feridos_graves          311751 non-null  Int64         
+ 21  ilesos                  311751 non-null  Int64         
+ 22  ignorados               311751 non-null  Int64         
+ 23  feridos                 311751 non-null  Int64         
+ 24  veiculos                311751 non-null  Int64         
+ 25  latitude                311751 non-null  float64       
+ 26  longitude               311751 non-null  float64       
+ 27  regional                308619 non-null  str           
+ 28  delegacia               308531 non-null  str           
+ 29  uop                     308386 non-null  str           
+dtypes: Int64(9), datetime64[us](1), float64(3), int64(1), str(16)
+memory usage: 128.0 MB
+None

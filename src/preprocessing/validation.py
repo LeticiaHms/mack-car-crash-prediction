@@ -1,32 +1,46 @@
 """
-Verificação de qualidade da camada curada de acidentes da PRF.
+Validação de qualidade das camadas curadas (pós pré-processamento).
 
-Executa um conjunto de validações de schema, tipos, ausência de dados,
+Executa conjuntos de validações de schema, tipos, ausência de dados,
 duplicidade, intervalos, categorias e consistência entre variáveis sobre
-`dados/curated/acidentes_2022_2026.parquet`, e grava um relatório
-estruturado em `reports/data_quality/verify_report.json` para fins de
-rastreabilidade e auditoria (ver documento técnico,
-`docs/docs-etapas/etapa2-pre-processamento.md`, seção 9).
+os parquets gerados por `src/preprocessing/acidentes.py` e
+`src/preprocessing/feriados.py`, e grava relatórios estruturados em
+`reports/data_quality/` para fins de rastreabilidade e auditoria (ver
+documento técnico, `docs/docs-etapas/etapa1-pre-processamento.md`).
+
+Este módulo corresponde à etapa "Validação de tipos e regras" do fluxo de
+pré-processamento descrito em
+`docs/specs/initial_cleaning/preprocessing_guidelines.md` (seção 12), e é
+aplicado logo antes dos dados serem considerados prontos para a camada
+Curated (seção 14 do mesmo documento).
 """
 import pandas as pd
 import json
 import os
 import logging
 
+from src.preprocessing.feriados import ANO_MIN as FERIADOS_ANO_MIN, ANO_MAX as FERIADOS_ANO_MAX
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-REPORT_PATH = 'reports/data_quality/verify_report.json'
+ACIDENTES_PATH = 'dados/curated/acidentes_2022_2026.parquet'
+FERIADOS_PATH = 'dados/curated/feriados_nacionais.parquet'
+ACIDENTES_REPORT_PATH = 'reports/data_quality/verify_acidentes_report.json'
+FERIADOS_REPORT_PATH = 'reports/data_quality/verify_feriados_report.json'
 
 
-def verify():
-    report = {'checks': [], 'status': 'PASSOU'}
+def _new_report():
+    return {'checks': [], 'status': 'PASSOU'}
+
+
+def _make_check(report):
+    """Cria a função `check` ligada a um `report`. `condicao=True` -> OK.
+    Quando `condicao` é False e `severidade='erro'`, a validação aborta
+    (assert). Quando `severidade='aviso'`, o problema é apenas registrado
+    no relatório (não interrompe a execução) — reservado para condições
+    conhecidas e aceitas (ver documento técnico)."""
 
     def check(nome, condicao, detalhe=None, severidade='erro'):
-        """Registra o resultado de uma validação. `condicao=True` -> OK.
-        Quando `condicao` é False e `severidade='erro'`, o script aborta
-        (assert). Quando `severidade='aviso'`, o problema é apenas
-        registrado no relatório (não interrompe a execução) — reservado
-        para condições conhecidas e aceitas (ver documento técnico)."""
         entry = {'check': nome, 'ok': bool(condicao), 'severidade': severidade, 'detalhe': detalhe}
         report['checks'].append(entry)
         if not condicao:
@@ -40,16 +54,16 @@ def verify():
             logging.info(f"✓ {nome}")
         return entry
 
-    file_path = 'dados/curated/acidentes_2022_2026.parquet'
-    if not pd.io.common.file_exists(file_path):
-        logging.error(f"O arquivo {file_path} não existe.")
-        report['status'] = 'FALHOU'
-        report['erro'] = 'arquivo_inexistente'
-        _save_report(report)
-        return
+    return check
 
-    df = pd.read_parquet(file_path)
-    logging.info(f"Carregados {len(df)} registros de {file_path}")
+
+def validate_acidentes(df, report=None):
+    """Valida a camada curada de acidentes da PRF. Reutilizável para
+    reprocessamentos (novos anos, dados atualizados)."""
+    report = report if report is not None else _new_report()
+    check = _make_check(report)
+
+    logging.info(f"Validando {len(df)} registros de acidentes...")
     report['linhas'] = int(len(df))
     report['colunas'] = int(len(df.columns))
 
@@ -163,19 +177,107 @@ def verify():
     check('consistencia_classificacao_vs_vitimas', mismatch_class == 0, f"{mismatch_class} divergências")
 
     report['status'] = 'FALHOU' if any(not c['ok'] and c['severidade'] == 'erro' for c in report['checks']) else 'PASSOU'
-    _save_report(report)
-
-    logging.info("Parabéns! Todas as validações críticas passaram com sucesso.")
-    print("\nResumo das informações do DataFrame curado:")
-    print(df.info())
+    return report
 
 
-def _save_report(report):
-    os.makedirs(os.path.dirname(REPORT_PATH), exist_ok=True)
-    with open(REPORT_PATH, 'w', encoding='utf-8') as f:
+def validate_feriados(df, report=None):
+    """Valida a camada curada de feriados nacionais (ANBIMA). Reutilizável
+    para reprocessamentos (novas linhas anuais, arquivo atualizado)."""
+    report = report if report is not None else _new_report()
+    check = _make_check(report)
+
+    logging.info(f"Validando {len(df)} registros de feriados...")
+    report['linhas'] = int(len(df))
+    report['colunas'] = int(len(df.columns))
+
+    # 1. Validação de schema (nomes e ordem das colunas)
+    expected_columns = ['data', 'dia_semana', 'feriado']
+    check('schema_nomes_e_ordem', list(df.columns) == expected_columns,
+          f"esperado {expected_columns}, obtido {list(df.columns)}")
+
+    # 2. Validação de tipos de dados
+    check('dtype_data', pd.api.types.is_datetime64_any_dtype(df['data']), str(df['data'].dtype))
+
+    # 3. Duplicidade. A chave de unicidade é ('data', 'feriado'), pois uma
+    #    mesma data pode conter mais de um feriado nomeado legitimamente
+    #    (ex.: coincidência entre data móvel e data fixa em anos futuros —
+    #    ver `src/preprocessing/feriados.py`).
+    duplicatas_chave = int(df.duplicated(subset=['data', 'feriado']).sum())
+    check('unicidade_data_feriado', duplicatas_chave == 0, f"{duplicatas_chave} duplicatas em (data, feriado)")
+    linhas_duplicadas = int(df.duplicated().sum())
+    check('linhas_totalmente_duplicadas', linhas_duplicadas == 0, f"{linhas_duplicadas} linhas idênticas em todas as colunas")
+
+    # 4. Valores nulos em colunas críticas (não podem faltar)
+    missing_report = {}
+    for col in df.columns:
+        n = int(df[col].isnull().sum())
+        if n:
+            missing_report[col] = {'nulos': n, 'pct': round(n / len(df) * 100, 3)}
+    report['missing_values'] = missing_report
+    for col in ['data', 'dia_semana', 'feriado']:
+        null_count = int(df[col].isnull().sum())
+        check(f'sem_nulos_{col}', null_count == 0, f"{null_count} nulos")
+
+    # 5. Validação de categorias e intervalos
+    expected_days = {'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'}
+    actual_days = set(df['dia_semana'].dropna().unique())
+    invalid_days = actual_days - expected_days
+    check('dias_semana_validos', len(invalid_days) == 0, f"valores inesperados: {invalid_days}")
+
+    # O filtro de período é aplicado no pré-processamento (ver
+    # `src/preprocessing/feriados.py`); aqui validamos que ele foi
+    # respeitado, e não apenas um intervalo genericamente plausível.
+    anos = df['data'].dt.year
+    check('anos_dentro_do_periodo_do_projeto', anos.min() >= FERIADOS_ANO_MIN and anos.max() <= FERIADOS_ANO_MAX,
+          f"[{anos.min()}, {anos.max()}], esperado [{FERIADOS_ANO_MIN}, {FERIADOS_ANO_MAX}]")
+
+    # 6. Consistência entre variáveis: 'dia_semana' informado vs. calculado
+    #    a partir de 'data'. Reportado como aviso (diagnóstico), não como
+    #    erro — mesmo tratamento aplicado no pré-processamento (ver
+    #    `src/preprocessing/feriados.py`), pois não representa um problema
+    #    de integridade que justifique falhar a validação.
+    dias_pt = {
+        0: 'segunda-feira', 1: 'terça-feira', 2: 'quarta-feira', 3: 'quinta-feira',
+        4: 'sexta-feira', 5: 'sábado', 6: 'domingo',
+    }
+    dia_calculado = df['data'].dt.dayofweek.map(dias_pt)
+    divergentes = int((dia_calculado != df['dia_semana']).sum())
+    check('consistencia_dia_semana_vs_data', divergentes == 0,
+          f"{divergentes} registros com 'dia_semana' divergente do calculado a partir de 'data'",
+          severidade='aviso')
+
+    report['status'] = 'FALHOU' if any(not c['ok'] and c['severidade'] == 'erro' for c in report['checks']) else 'PASSOU'
+    return report
+
+
+def _save_report(report, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2, default=str)
-    logging.info(f"Relatório de verificação salvo em {REPORT_PATH}")
+    logging.info(f"Relatório de validação salvo em {path}")
+
+
+def _validate_file(file_path, report_path, validate_fn, nome_base):
+    if not os.path.exists(file_path):
+        logging.error(f"O arquivo {file_path} não existe.")
+        report = {'status': 'FALHOU', 'erro': 'arquivo_inexistente'}
+        _save_report(report, report_path)
+        return report
+
+    df = pd.read_parquet(file_path)
+    logging.info(f"Carregados {len(df)} registros de {file_path}")
+    report = validate_fn(df)
+    _save_report(report, report_path)
+
+    if report['status'] == 'PASSOU':
+        logging.info(f"Todas as validações críticas de {nome_base} passaram com sucesso.")
+    return report
+
+
+def main():
+    _validate_file(ACIDENTES_PATH, ACIDENTES_REPORT_PATH, validate_acidentes, 'acidentes')
+    _validate_file(FERIADOS_PATH, FERIADOS_REPORT_PATH, validate_feriados, 'feriados')
 
 
 if __name__ == '__main__':
-    verify()
+    main()

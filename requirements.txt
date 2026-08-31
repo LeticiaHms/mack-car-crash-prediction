@@ -1,5 +1,6 @@
 pandas
 pyarrow
+xlrd
 numpy
 duckdb
 scipy

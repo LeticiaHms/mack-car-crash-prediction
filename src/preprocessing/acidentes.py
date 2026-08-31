@@ -6,7 +6,7 @@ trata valores ausentes de forma documentada, remove duplicidades e
 grava a camada curada em Parquet (`dados/curated/acidentes_2022_2026.parquet`).
 
 Todas as decisões de tratamento estão documentadas em
-`docs/docs-etapas/etapa2-pre-processamento.md`.
+`docs/docs-etapas/etapa1-pre-processamento.md`.
 """
 import pandas as pd
 import numpy as np

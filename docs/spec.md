@@ -22,7 +22,7 @@ O projeto utilizará **exclusivamente dados públicos da Polícia Rodoviária Fe
 
 ## 2. Fonte de dados
 
-A única fonte de dados permitida no projeto será a base oficial da PRF:
+A base principal de dados do projeto será a base oficial da PRF:
 
 > **Documento CSV de Acidentes — Agrupados por ocorrência**
 
@@ -34,13 +34,18 @@ Serão utilizados exclusivamente os arquivos referentes aos anos:
 - 2025
 - 2026
 
-Não deverão ser utilizadas fontes complementares externas, como INMET, IBGE, DNIT, ANTT ou outras bases de dados.
+Como fonte complementar, será utilizada a base de **feriados nacionais da ANBIMA**, exclusivamente para permitir a derivação de features temporais (ex: identificar se um acidente ocorreu em dia de feriado), sem substituir ou competir com os dados de acidentes da PRF.
 
-Fonte oficial:
+Não deverão ser utilizadas outras fontes complementares externas, como INMET, IBGE, DNIT, ANTT ou outras bases de dados.
 
-https://www.gov.br/prf/pt-br/acesso-a-informacao/dados-abertos/dados-abertos-da-prf
+Fontes oficiais:
 
-O agente de IA deverá consultar o dicionário/documentação oficial da PRF antes de assumir o significado de qualquer coluna.
+| Fonte | Dados obtidos | Link |
+|---|---|---|
+| Polícia Rodoviária Federal (PRF) | Dados abertos de acidentes de trânsito, agrupados por ocorrência | https://www.gov.br/prf/pt-br/acesso-a-informacao/dados-abertos/dados-abertos-da-prf |
+| ANBIMA | Feriados nacionais | https://www.anbima.com.br/feriados/feriados.asp |
+
+O agente de IA deverá consultar o dicionário/documentação oficial das fontes antes de assumir o significado de qualquer coluna.
 
 ---
 
@@ -213,6 +218,7 @@ Possíveis features:
 - dia da semana;
 - hora;
 - fim de semana;
+- feriado nacional (derivado do cruzamento com a base de feriados da ANBIMA);
 - período do dia;
 - estação do ano, caso seja derivada da data.
 
@@ -537,7 +543,7 @@ O projeto deve priorizar:
 
 Não criar dados fictícios para aumentar o tamanho do dataset.
 
-Não utilizar informações externas aos CSVs da PRF.
+Não utilizar informações externas aos CSVs da PRF, com exceção da base de feriados nacionais da ANBIMA, utilizada exclusivamente para derivação de features temporais.
 
 Toda transformação ou feature derivada deverá ser rastreável aos dados originais.
 
@@ -681,6 +687,6 @@ Sempre priorizar:
 
 **qualidade dos dados > quantidade de dados**
 
-**dados da PRF > qualquer fonte externa**
+**dados da PRF > qualquer fonte externa** (exceção: feriados nacionais da ANBIMA, usados apenas para features temporais)
 
 O projeto deve ser suficientemente simples para ser concluído no prazo, mas suficientemente completo para demonstrar competências de Engenharia de Dados e Machine Learning.

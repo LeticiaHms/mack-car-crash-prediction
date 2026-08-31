@@ -1,0 +1,68 @@
+{
+  "checks": [
+    {
+      "check": "schema_nomes_e_ordem",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "esperado ['data', 'dia_semana', 'feriado'], obtido ['data', 'dia_semana', 'feriado']"
+    },
+    {
+      "check": "dtype_data",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "datetime64[us]"
+    },
+    {
+      "check": "unicidade_data_feriado",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 duplicatas em (data, feriado)"
+    },
+    {
+      "check": "linhas_totalmente_duplicadas",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 linhas idênticas em todas as colunas"
+    },
+    {
+      "check": "sem_nulos_data",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "sem_nulos_dia_semana",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "sem_nulos_feriado",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "0 nulos"
+    },
+    {
+      "check": "dias_semana_validos",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "valores inesperados: set()"
+    },
+    {
+      "check": "anos_dentro_do_periodo_do_projeto",
+      "ok": true,
+      "severidade": "erro",
+      "detalhe": "[2022, 2026], esperado [2022, 2026]"
+    },
+    {
+      "check": "consistencia_dia_semana_vs_data",
+      "ok": true,
+      "severidade": "aviso",
+      "detalhe": "0 registros com 'dia_semana' divergente do calculado a partir de 'data'"
+    }
+  ],
+  "status": "PASSOU",
+  "linhas": 63,
+  "colunas": 3,
+  "missing_values": {}
+}

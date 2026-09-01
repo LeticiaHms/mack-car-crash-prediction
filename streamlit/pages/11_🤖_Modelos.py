@@ -18,7 +18,7 @@ if not os.path.isdir(MODELS_DIR) or not os.path.exists(METRICS_FILE):
     st.warning(
         "⚠️ **Nenhum modelo treinado encontrado ainda.** Esta etapa do projeto "
         "(`skill/machine-learning.md` + `skill/model-evaluation.md`) ainda não foi executada — "
-        "o escopo desta tarefa foi a EDA (docs/EDA.md, docs/ANALYSIS_LOG.md, docs/DECISIONS.md)."
+        "o escopo desta tarefa foi a EDA (docs/specs/eda/EDA.md, docs/ANALYSIS_LOG.md, docs/DECISIONS.md)."
     )
     st.markdown(
         """

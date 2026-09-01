@@ -42,6 +42,19 @@ def query(sql: str) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def consolidation_info() -> dict:
+    """Diagnóstico da janela final ainda não consolidada da série (ver 🧹 Qualidade)."""
+    info = eu.consolidation_cutoff(get_connection())
+    info.pop("series", None)
+    return info
+
+
+@st.cache_data(show_spinner=False)
+def total_rows() -> int:
+    return int(query("SELECT count(*) n FROM acidentes").iloc[0]["n"])
+
+
+@st.cache_data(show_spinner=False)
 def distinct_values(column: str, source: str = "acidentes_enriquecido") -> list:
     df = query(f"SELECT DISTINCT {column} AS v FROM {source} WHERE {column} IS NOT NULL ORDER BY 1")
     return df["v"].tolist()
@@ -87,10 +100,32 @@ def render_sidebar_filters() -> tuple[str, dict]:
             "pode sugerir uma queda que não existe — veja docs/DECISIONS.md (D-12)."
         )
 
+    st.sidebar.divider()
+    info = consolidation_info()
+    excluir = st.sidebar.checkbox(
+        "Excluir janela não consolidada",
+        value=False,
+        key="filter_consolidado",
+        help=(
+            f"Os últimos {info['days_flagged']} dias da série (após {info['cutoff_date']}) têm volume "
+            "muito abaixo do histórico — padrão típico de registro ainda não consolidado na fonte, "
+            "não de queda real de acidentes. Marque para cortá-los de todas as páginas. "
+            "Desmarcado por padrão para reproduzir os números de docs/specs/eda/EDA.md."
+        ),
+    )
+    selections["_janela_consolidada"] = excluir
+    if excluir:
+        clauses.append(f"data_inversa <= DATE '{info['cutoff_date']}'")
+        st.sidebar.caption(
+            f"✂️ Excluindo {info['rows_flagged']:,} registros posteriores a {info['cutoff_date']}."
+            .replace(",", ".")
+        )
+
     where_clause = " AND ".join(clauses) if clauses else "1=1"
     if st.sidebar.button("Limpar filtros"):
         for col, _, _ in FILTER_DEFS:
             st.session_state[f"filter_{col}"] = []
+        st.session_state["filter_consolidado"] = False
         st.rerun()
 
     return where_clause, selections
@@ -102,9 +137,15 @@ def filtered_view_sql(where_clause: str) -> str:
 
 
 def show_active_filters(selections: dict):
-    active = {k: v for k, v in selections.items() if v}
-    if not active:
-        st.caption("Nenhum filtro ativo — exibindo os 311.751 registros de 2022–2026 (jul).")
+    active = {k: v for k, v in selections.items() if v and not k.startswith("_")}
+    parts = [f"**{k}**: {', '.join(map(str, v))}" for k, v in active.items()]
+    if selections.get("_janela_consolidada"):
+        parts.append("**período**: até " + consolidation_info()["cutoff_date"] + " (janela consolidada)")
+    if not parts:
+        n = total_rows()
+        rng = query("SELECT min(data_inversa)::DATE mn, max(data_inversa)::DATE mx FROM acidentes").iloc[0]
+        st.caption(
+            f"Nenhum filtro ativo — exibindo os {n:,} registros de {rng['mn']} a {rng['mx']}.".replace(",", ".")
+        )
     else:
-        parts = [f"**{k}**: {', '.join(map(str, v))}" for k, v in active.items()]
         st.caption("Filtros ativos → " + " | ".join(parts))

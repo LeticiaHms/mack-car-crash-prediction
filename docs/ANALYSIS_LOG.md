@@ -32,7 +32,7 @@ produzido por `python src/run_eda.py` — nenhum valor foi digitado manualmente 
 
 **Método:** Contagem de IDs distintos vs. total; contagem de nulos por coluna via DuckDB.
 
-**Resultado:** 0 IDs duplicados, 0 linhas 100% duplicadas. Nulos: `classificacao_acidente`=5 (0,0016%), `regional`=3.132 (1,00%), `delegacia`=3.220 (1,03%), `uop`=3.365 (1,08%). Demais 26 colunas sem nulos.
+**Resultado:** 0 IDs duplicados, 0 linhas 100% duplicadas. Nulos: `regional`=3.132 (1,00%), `delegacia`=3.220 (1,03%), `uop`=3.365 (1,08%). Demais 27 colunas sem nulos. (Os 5 nulos de `classificacao_acidente` observados na primeira execução deixaram de existir após a modularização do pré-processamento — ver A-22.)
 
 **Interpretação:** Qualidade estrutural alta; a deduplicação de `src/preprocess.py` funcionou corretamente.
 
@@ -357,3 +357,104 @@ produzido por `python src/run_eda.py` — nenhum valor foi digitado manualmente 
 **Impacto:** Este mapeamento é o insumo direto para a próxima etapa (`feature-engineering`), evitando redescobrir o mesmo raciocínio.
 
 **Evidência:** Análise conceitual + `reports/eda/eda_results.json → chi2_gravidade_vs_explicativas` (para saber quais colunas "leakage" têm associação alta, o que reforça por que são tentadoras e por que precisam ser explicitamente vetadas).
+
+---
+
+## A-19 — A queda de volume no fim da série é falta de consolidação da fonte, não redução de acidentes
+
+**Pergunta:** A queda observada em 2026 (A-08, classificada como inconclusiva) é real ou artefato de coleta?
+
+**Dados:** Série diária completa de `acidentes_2022_2026.parquet`, mais o calendário esperado de 2022-01-01 a 2026-07-31.
+
+**Método:** (a) `eda_utils.calendar_coverage` compara os dias observados com o calendário completo; (b) `eda_utils.consolidation_cutoff` compara a média móvel de 7 dias com a mediana histórica de referência (calculada ignorando os últimos 120 dias) e isola o último bloco contíguo abaixo de 70% dessa referência; (c) recomparação entre anos usando a mesma janela de dias do ano para todos.
+
+**Resultado:**
+- **8 dias do calendário não têm nenhum registro** (1.673 esperados, 1.665 observados) — todos entre 2026-07-01 e 2026-07-14.
+- O bloco final de **38 dias (após 2026-06-23)** contém apenas **492 registros**, contra uma mediana histórica de **188 acidentes/dia** — ou seja, ~0,16% do volume esperado para o período.
+- Julho/2026 tem 122 acidentes contra 5.659–6.401 nos julhos de 2022–2025.
+- Restringindo todos os anos ao intervalo 1º de janeiro → dia 174 do ano (janela consolidada): 2022=29.804, 2023=31.262, 2024=33.594, 2025=33.344, **2026=33.202 (−0,43% vs. 2025)**.
+
+**Interpretação:** A "queda de 17,8% em jan–jul/2026" registrada em A-08 desaparece por completo quando a comparação usa apenas dias efetivamente consolidados: 2026 está **estável** em relação a 2025. O formato da queda (colapso abrupto nos últimos dias, não declínio gradual) é a assinatura clássica de registro administrativo ainda em preenchimento, e nenhuma melhoria de segurança viária produziria essa curva.
+
+**Limitação:** O corte de 2026-06-23 vem de uma heurística (70% da mediana de referência); é uma fronteira conservadora e aproximada, não uma data oficial de fechamento divulgada pela PRF. Meses ligeiramente anteriores ao corte podem ainda estar parcialmente incompletos.
+
+**Decisão:** [D-13](DECISIONS.md#d-13); revisa o alcance de [D-12](DECISIONS.md#d-12).
+
+**Impacto:** Resolve a ambiguidade de A-08 (que ficava entre "queda real" e "atraso de consolidação") em favor da segunda hipótese. O Streamlit ganhou um filtro global "Excluir janela não consolidada" e um alerta na página inicial.
+
+**Evidência:** `reports/eda/eda_results.json → calendar_coverage`, `consolidation_window`, `accidents_by_year_consolidated_window`; `reports/eda/tables/daily_series_consolidacao.csv` e `by_year_janela_consolidada.csv`.
+
+---
+
+## A-20 — O efeito de feriado é de véspera e é de volume, não de gravidade
+
+**Pergunta:** Feriados concentram mais acidentes e/ou acidentes mais graves?
+
+**Dados:** Série diária cortada em 2026-06-23 (A-19), cruzada com `dados/curated/feriados_nacionais.parquet` (63 feriados nacionais de 2022 a 2026). Cada dia foi classificado em Feriado, Véspera de feriado, Pós-feriado ou Dia comum.
+
+**Método:** Média de acidentes por dia em cada tipo de dia; Mann-Whitney (não-paramétrico, porque a contagem diária não é normal) contra os dias comuns para o volume; teste z de duas proporções com IC 95% para a taxa de gravidade.
+
+**Resultado:**
+
+| Tipo de dia | Dias | Acidentes/dia | vs. dia comum | p (Mann-Whitney) | % grave | Dif. de gravidade (IC 95%) |
+|---|---|---|---|---|---|---|
+| Dia comum | 1.475 | 190,24 | — | — | 28,23% | referência |
+| Véspera de feriado | 51 | 201,18 | **+5,75%** | **0,0037** | 28,78% | +0,55 p.p. (−0,34 a +1,44) |
+| Feriado | 57 | 188,70 | −0,81% | 0,774 | 28,45% | ≈ 0 |
+| Pós-feriado | 52 | 185,44 | −2,52% | 0,352 | 28,77% | ≈ 0 |
+
+**Interpretação:** O senso comum de que "feriado é mais perigoso" não se sustenta: o feriado em si tem volume estatisticamente indistinguível de um dia comum. O que se destaca é a **véspera**, com ~6% mais acidentes — compatível com o movimento de saída para o feriado. E o efeito é exclusivamente de **exposição**: o intervalo de confiança da diferença de gravidade cruza o zero em todos os três tipos de dia, ou seja, o calendário muda *quantos* acidentes ocorrem, não *quão graves* eles são. Isso é coerente com A-10 (sazonalidade de volume, não de gravidade).
+
+**Limitação:** Feriados não se distribuem uniformemente pelos dias da semana, e o dia da semana tem efeito próprio (A-11) — a comparação acima não controla esse confundidor. Além disso, cada feriado nomeado aparece só 4–5 vezes na série, o que torna instável qualquer conclusão sobre um feriado específico.
+
+**Impacto:** Sugere uma feature `vespera_de_feriado` para um eventual modelo de **volume/exposição**, e não para o classificador de gravidade. Hipótese H-05 na página 💡 do Streamlit.
+
+**Evidência:** `reports/eda/eda_results.json → holiday_effect`; `reports/eda/tables/tipo_dia_feriado.csv`.
+
+---
+
+## A-21 — Parte do excesso de gravidade do Maranhão é composição de tipo de pista, mas a maior parte não é
+
+**Pergunta:** O MA tem taxa de gravidade atipicamente alta (A-15). Isso reflete risco próprio do estado ou apenas a composição das rodovias que ele tem?
+
+**Método:** Padronização direta (`eda_utils.standardized_rate`): recalcula a taxa do MA como se a distribuição de `tipo_pista` dele fosse igual à do país, mantendo as taxas observadas dentro de cada estrato.
+
+**Resultado:** MA tem 74,9% dos acidentes em pista simples contra 48,6% no país — e pista simples é o estrato mais grave (33,79%, ver A-22/[A-17](#a-17--ausência-de-campo-de-condição-da-pista-superfície-na-fonte)). Taxa bruta do MA: **46,25%**; taxa padronizada por `tipo_pista`: **41,23%**; taxa nacional: **28,28%**. A composição explica **28% do excesso** (5,02 dos 17,97 p.p.); restam ~12,9 p.p. não explicados.
+
+**Interpretação:** Demonstração concreta de por que comparar médias de grupos sem controlar composição é enganoso — mas também de que o controle não fez o efeito desaparecer. O MA continua muito acima da média depois do ajuste, e a explicação para o restante está fora desta base (tempo de resgate, perfil de velocidade, densidade de fiscalização, distância a hospitais). Permanece **hipótese de investigação**, nunca uma afirmação sobre o comportamento dos motoristas do estado.
+
+**Limitação:** Padronização por uma única variável. Um ajuste multivariado (modelo com todos os controles estruturais) é a próxima etapa — hipótese H-04.
+
+**Impacto:** A página ✂️ Segmentação do Streamlit generaliza o método para qualquer par de segmentos e qualquer confundidor, incluindo alerta automático de inversão de sinal (paradoxo de Simpson).
+
+**Evidência:** `reports/eda/eda_results.json → ma_standardization`.
+
+---
+
+## A-22 — Valores-sentinela e campo multivalorado: o que não aparece em uma contagem de nulos
+
+**Pergunta:** Depois da limpeza, sobrou algum problema de qualidade que uma checagem de nulos não capturaria?
+
+**Método:** `eda_utils.sentinel_report` — regras explícitas para valores que ocupam a posição de dado válido sem sê-lo; mais checagens de coerência entre colunas e de domínio geográfico.
+
+**Resultado:**
+
+| Situação | Registros | % |
+|---|---|---|
+| `tracado_via` multivalorada (contém `;`) | 70.204 | 22,52% |
+| `condicao_metereologica` = "Ignorado" | 4.108 | 1,32% |
+| `regional`/`delegacia`/`uop` nulos | 3.365 | 1,08% |
+| `km <= 0` | 1.496 | 0,48% |
+| `br = 0` | 788 | 0,25% |
+| `sentido_via` = "Não Informado" | 788 | 0,25% |
+| Coordenadas fora do território brasileiro | 0 | 0% |
+
+Coerência: `feridos = feridos_leves + feridos_graves` em 100% das linhas; `classificacao_acidente` bate com as contagens de vítimas em 100%; `dia_semana` bate com `data_inversa` em 100%; nenhum `horario` inválido. A única divergência é `pessoas` vs. soma das vítimas (5,39%, [A-16](#a-16--inconsistência-interna-em-pessoas-54-e-km0-048-são-limitações-de-qualidade-não-de-análise)).
+
+**Interpretação:** A base tem qualidade estrutural alta, e é justamente por isso que os problemas restantes são traiçoeiros: nenhum deles aparece como `NULL`. `km=0` entra em qualquer média como posição real; `br=0` vira uma rodovia em qualquer ranking; "Ignorado" vira uma categoria com significado próprio em um one-hot. O caso mais relevante para a modelagem é `tracado_via`: quase um quarto dos registros traz várias características na mesma string (`Reta;Declive`), o que a transforma em uma coluna de alta cardinalidade artificial. As primitivas reais são 12 (Reta, Curva, Declive, Aclive, Interseção de Vias, Rotatória, Retorno Regulamentado, Em Obras, Viaduto, Ponte, Desvio Temporário, Túnel).
+
+**Limitação:** A lista de sentinelas é baseada em conhecimento do domínio e pode não ser exaustiva.
+
+**Impacto:** `tracado_via` deve ser codificada como **multi-hot** (uma binária por primitiva), não one-hot da string inteira — insumo direto para a feature engineering. A observação de que `classificacao_acidente` não tem mais nulos (eram 5 antes da modularização do pré-processamento) foi incorporada a A-02.
+
+**Evidência:** `reports/eda/eda_results.json → sentinel_values`, `missing`, `consistency_pessoas_vs_vitimas`; página 🧹 Qualidade dos Dados do Streamlit.

@@ -19,6 +19,7 @@ import pandas as pd
 from scipy import stats
 
 CURATED_PATH = "dados/curated/acidentes_2022_2026.parquet"
+FERIADOS_PATH = "dados/curated/feriados_nacionais.parquet"
 
 CATEGORICAL_COLS = [
     "uf", "br", "municipio", "causa_acidente", "tipo_acidente",
@@ -47,26 +48,65 @@ WEEKDAY_ORDER = [
 ]
 
 
-def get_connection(path: str = CURATED_PATH) -> duckdb.DuckDBPyConnection:
-    """Abre uma conexão DuckDB in-memory que enxerga o Parquet curado como uma view."""
+def get_connection(
+    path: str = CURATED_PATH,
+    feriados_path: str | None = FERIADOS_PATH,
+) -> duckdb.DuckDBPyConnection:
+    """Abre uma conexão DuckDB in-memory que enxerga o Parquet curado como uma view.
+
+    Cria três objetos:
+    - `acidentes`: o parquet curado, sem alteração;
+    - `feriados`: calendário oficial de feriados nacionais (uma linha por data);
+    - `acidentes_enriquecido`: `acidentes` + colunas derivadas usadas na EDA
+      (`ano`, `mes`, `hora`, `gravidade_4`, `grave_bin`) + o contexto de
+      calendário (`tipo_dia`, `nome_feriado`), que permite separar o efeito de
+      feriado/véspera do efeito de dia da semana (skill `eda`, sazonalidade).
+
+    O join com feriados é 1:1 por data (a view `feriados` é agregada por data
+    antes do join), portanto **não** multiplica linhas de `acidentes`.
+    """
     con = duckdb.connect(database=":memory:")
     con.execute(f"CREATE OR REPLACE VIEW acidentes AS SELECT * FROM '{path}'")
+
+    if feriados_path:
+        con.execute(
+            f"""
+            CREATE OR REPLACE VIEW feriados AS
+            SELECT data::DATE AS data, string_agg(DISTINCT feriado, ' / ') AS feriado
+            FROM '{feriados_path}'
+            GROUP BY 1
+            """
+        )
+    else:  # fallback: calendário vazio, mantém o schema da view enriquecida
+        con.execute("CREATE OR REPLACE VIEW feriados AS SELECT NULL::DATE AS data, NULL::VARCHAR AS feriado WHERE FALSE")
+
     con.execute(
         """
         CREATE OR REPLACE VIEW acidentes_enriquecido AS
         SELECT
-            *,
-            year(data_inversa)  AS ano,
-            month(data_inversa) AS mes,
-            date_part('hour', try_cast(horario AS TIME)) AS hora,
+            a.*,
+            year(a.data_inversa)  AS ano,
+            month(a.data_inversa) AS mes,
+            a.data_inversa::DATE  AS dia,
+            date_part('hour', try_cast(a.horario AS TIME)) AS hora,
             CASE
-                WHEN mortos > 0 THEN 'Fatal'
-                WHEN feridos_graves > 0 THEN 'Grave (não fatal)'
-                WHEN feridos_leves > 0 THEN 'Leve'
+                WHEN a.mortos > 0 THEN 'Fatal'
+                WHEN a.feridos_graves > 0 THEN 'Grave (não fatal)'
+                WHEN a.feridos_leves > 0 THEN 'Leve'
                 ELSE 'Sem vítimas'
             END AS gravidade_4,
-            CASE WHEN mortos > 0 OR feridos_graves > 0 THEN 1 ELSE 0 END AS grave_bin
-        FROM acidentes
+            CASE WHEN a.mortos > 0 OR a.feridos_graves > 0 THEN 1 ELSE 0 END AS grave_bin,
+            CASE
+                WHEN f.data  IS NOT NULL THEN 'Feriado'
+                WHEN fv.data IS NOT NULL THEN 'Véspera de feriado'
+                WHEN fp.data IS NOT NULL THEN 'Pós-feriado'
+                ELSE 'Dia comum'
+            END AS tipo_dia,
+            coalesce(f.feriado, fv.feriado, fp.feriado) AS nome_feriado
+        FROM acidentes a
+        LEFT JOIN feriados f  ON a.data_inversa::DATE = f.data
+        LEFT JOIN feriados fv ON a.data_inversa::DATE = (fv.data - INTERVAL 1 DAY)::DATE
+        LEFT JOIN feriados fp ON a.data_inversa::DATE = (fp.data + INTERVAL 1 DAY)::DATE
         """
     )
     return con
@@ -143,7 +183,9 @@ def cardinality_report(con, columns: list[str] = CATEGORICAL_COLS) -> pd.DataFra
 
 def category_frequency(con, column: str) -> pd.DataFrame:
     total = df(con, "SELECT count(*) n FROM acidentes").iloc[0]["n"]
-    out = df(con, f"SELECT {column} AS categoria, count(*) AS n FROM acidentes GROUP BY 1 ORDER BY 2 DESC")
+    # ORDER BY 1 como desempate: sem ele o DuckDB devolve empates em ordem
+    # não determinística e as tabelas em reports/ mudam de ordem a cada execução.
+    out = df(con, f"SELECT {column} AS categoria, count(*) AS n FROM acidentes GROUP BY 1 ORDER BY 2 DESC, 1")
     out["pct"] = (out["n"] / total * 100).round(2)
     return out
 
@@ -288,3 +330,195 @@ def daily_series(con) -> pd.DataFrame:
     out["dia"] = pd.to_datetime(out["dia"])
     out["media_movel_7d"] = out["n"].rolling(7, min_periods=1).mean()
     return out
+
+
+# ---------------------------------------------------------------------------
+# 6. Cobertura temporal e sentinelas (qualidade pós-limpeza)
+# ---------------------------------------------------------------------------
+
+def calendar_coverage(con) -> dict:
+    """Compara o calendário esperado com os dias efetivamente observados.
+
+    Motivo (skill `data-quality`): uma base pode não ter nenhum nulo e ainda
+    assim estar incompleta — dias inteiros ausentes não aparecem como NULL,
+    aparecem como "linha que não existe". Só uma comparação com o calendário
+    revela esse buraco.
+    """
+    rng = df(con, "SELECT min(data_inversa)::DATE mn, max(data_inversa)::DATE mx FROM acidentes").iloc[0]
+    obs = df(con, "SELECT DISTINCT data_inversa::DATE AS dia FROM acidentes")
+    expected = pd.date_range(rng["mn"], rng["mx"], freq="D")
+    observed = pd.to_datetime(obs["dia"])
+    missing = expected.difference(observed)
+    return {
+        "date_min": str(rng["mn"]),
+        "date_max": str(rng["mx"]),
+        "expected_days": int(len(expected)),
+        "observed_days": int(len(observed)),
+        "missing_days": int(len(missing)),
+        "missing_days_list": [str(d.date()) for d in missing],
+    }
+
+
+def consolidation_cutoff(con, ratio: float = 0.7, ref_lag_days: int = 120) -> dict:
+    """Detecta a janela final ainda não consolidada da série e sugere um corte.
+
+    Método: compara a média móvel de 7 dias do volume diário com a mediana
+    histórica de referência (calculada ignorando os últimos `ref_lag_days`
+    dias, que são justamente os suspeitos). O último bloco contíguo de dias
+    com média móvel abaixo de `ratio` × referência é tratado como janela de
+    consolidação incompleta — e não como queda real de acidentes.
+    """
+    daily = df(con, "SELECT data_inversa::DATE AS dia, count(*) n FROM acidentes GROUP BY 1 ORDER BY 1")
+    daily["dia"] = pd.to_datetime(daily["dia"])
+    full = (
+        pd.DataFrame({"dia": pd.date_range(daily["dia"].min(), daily["dia"].max(), freq="D")})
+        .merge(daily, on="dia", how="left")
+        .fillna({"n": 0})
+    )
+    max_day = full["dia"].max()
+    ref = float(full[full["dia"] <= max_day - pd.Timedelta(days=ref_lag_days)]["n"].median())
+    full["media_movel_7d"] = full["n"].rolling(7, center=True, min_periods=4).mean()
+    full["incompleto"] = full["media_movel_7d"] < ratio * ref
+
+    idx = len(full) - 1
+    if bool(full["incompleto"].iloc[idx]):
+        while idx - 1 >= 0 and bool(full["incompleto"].iloc[idx - 1]):
+            idx -= 1
+        cutoff = full["dia"].iloc[idx - 1]
+        n_days = int((max_day - cutoff).days)
+    else:
+        cutoff = max_day
+        n_days = 0
+
+    rows_after = int(full[full["dia"] > cutoff]["n"].sum())
+    return {
+        "reference_daily_median": ref,
+        "ratio": ratio,
+        "cutoff_date": str(cutoff.date()),
+        "last_date": str(max_day.date()),
+        "days_flagged": n_days,
+        "rows_flagged": rows_after,
+        "pct_rows_flagged": round(rows_after / max(1, int(full["n"].sum())) * 100, 3),
+        "series": full,
+    }
+
+
+SENTINEL_RULES = [
+    ("br", "br = 0", "Rodovia não identificada (não existe BR-000)"),
+    ("km", "km <= 0", "Marco quilométrico não informado"),
+    ("latitude", "latitude = 0 OR longitude = 0", "Coordenada nula (ponto no Golfo da Guiné)"),
+    ("sentido_via", "lower(sentido_via) LIKE '%não informado%'", "Preenchimento ausente codificado como texto"),
+    ("condicao_metereologica", "lower(condicao_metereologica) IN ('ignorado','ignorada')", "Condição não registrada"),
+    ("regional/delegacia/uop", "regional IS NULL OR delegacia IS NULL OR uop IS NULL",
+     "Unidade da PRF ausente (não afeta o local do acidente)"),
+    ("tracado_via", "tracado_via LIKE '%;%'",
+     "Campo multivalorado: várias características da via na mesma string, inflando a cardinalidade"),
+    ("classificacao_acidente", "classificacao_acidente IS NULL", "Classificação oficial ausente"),
+]
+
+
+def sentinel_report(con) -> pd.DataFrame:
+    """Conta valores-sentinela: 'não informado' disfarçado de valor válido.
+
+    São mais perigosos que NULL porque entram silenciosamente em médias,
+    rankings e modelos como se fossem uma categoria/medida real.
+    """
+    total = int(df(con, "SELECT count(*) n FROM acidentes").iloc[0]["n"])
+    rows = []
+    for col, cond, why in SENTINEL_RULES:
+        n = int(df(con, f"SELECT count(*) n FROM acidentes WHERE {cond}").iloc[0]["n"])
+        rows.append({
+            "coluna": col,
+            "regra": cond,
+            "n": n,
+            "pct": round(n / total * 100, 3),
+            "por que é sentinela": why,
+        })
+    return pd.DataFrame(rows).sort_values("n", ascending=False)
+
+
+# ---------------------------------------------------------------------------
+# 7. Validação estatística de proporções (taxa de gravidade)
+# ---------------------------------------------------------------------------
+
+def wilson_ci(successes: int, n: int, alpha: float = 0.05) -> tuple[float, float]:
+    """Intervalo de confiança de Wilson para uma proporção.
+
+    Preferido ao IC normal (Wald) porque não degenera quando p→0/1 nem quando
+    n é pequeno — o caso das rodovias/municípios com poucos acidentes.
+    """
+    if n == 0:
+        return (float("nan"), float("nan"))
+    z = stats.norm.ppf(1 - alpha / 2)
+    p = successes / n
+    denom = 1 + z**2 / n
+    center = (p + z**2 / (2 * n)) / denom
+    margin = z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / denom
+    return (float(max(0.0, center - margin)), float(min(1.0, center + margin)))
+
+
+def two_proportion_test(k1: int, n1: int, k2: int, n2: int, alpha: float = 0.05) -> dict:
+    """Teste z bicaudal para diferença entre duas proporções independentes.
+
+    Devolve o tamanho de efeito (diferença em pontos percentuais, razão de
+    risco e h de Cohen) junto do p-valor — com n desta ordem de grandeza o
+    p-valor sozinho é quase sempre ~0 e não informa relevância prática (D-08).
+    """
+    if n1 == 0 or n2 == 0:
+        return {"error": "grupo vazio"}
+    p1, p2 = k1 / n1, k2 / n2
+    p_pool = (k1 + k2) / (n1 + n2)
+    se_pool = np.sqrt(p_pool * (1 - p_pool) * (1 / n1 + 1 / n2))
+    z = (p1 - p2) / se_pool if se_pool > 0 else np.nan
+    p_value = float(2 * (1 - stats.norm.cdf(abs(z)))) if np.isfinite(z) else float("nan")
+    se_diff = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+    zc = stats.norm.ppf(1 - alpha / 2)
+    cohen_h = float(2 * np.arcsin(np.sqrt(p1)) - 2 * np.arcsin(np.sqrt(p2)))
+    return {
+        "p1": float(p1), "n1": int(n1), "k1": int(k1),
+        "p2": float(p2), "n2": int(n2), "k2": int(k2),
+        "diff_pp": float((p1 - p2) * 100),
+        "diff_ci_pp": (float((p1 - p2 - zc * se_diff) * 100), float((p1 - p2 + zc * se_diff) * 100)),
+        "risk_ratio": float(p1 / p2) if p2 > 0 else float("nan"),
+        "z": float(z),
+        "p_value": p_value,
+        "cohen_h": cohen_h,
+        "efeito": _classify_cohen_h(abs(cohen_h)),
+    }
+
+
+def _classify_cohen_h(h: float) -> str:
+    if h < 0.2:
+        return "desprezível"
+    if h < 0.5:
+        return "pequeno"
+    if h < 0.8:
+        return "médio"
+    return "grande"
+
+
+def standardized_rate(counts: pd.DataFrame, strata_col: str, weights: pd.Series,
+                      n_col: str = "n", k_col: str = "n_grave") -> dict:
+    """Padronização direta: qual seria a taxa do grupo se a composição dele
+    fosse igual à da população de referência?
+
+    Serve para separar "esse grupo é mais perigoso" de "esse grupo apenas tem
+    mais do tipo de via/horário que já é mais perigoso" — o antídoto direto
+    para o paradoxo de Simpson (erro nº 7 e nº 8 do guia da disciplina).
+    """
+    g = counts.set_index(strata_col)
+    rate = (g[k_col] / g[n_col]).replace([np.inf, -np.inf], np.nan)
+    w = weights.reindex(rate.index)
+    mask = rate.notna() & w.notna() & (w > 0)
+    if not mask.any():
+        return {"crude": float("nan"), "standardized": float("nan"), "coverage": 0.0}
+    w_used = w[mask] / w[mask].sum()
+    crude = float(g[k_col].sum() / g[n_col].sum()) if g[n_col].sum() else float("nan")
+    return {
+        "crude": crude,
+        "standardized": float((rate[mask] * w_used).sum()),
+        "coverage": float(w[mask].sum() / w.sum()) if w.sum() else 0.0,
+        "por_estrato": pd.DataFrame({
+            "n": g[n_col], "taxa_grupo": rate, "peso_referencia": w,
+        }).reset_index(),
+    }

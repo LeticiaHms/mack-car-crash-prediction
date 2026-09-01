@@ -66,7 +66,7 @@ Todas as decisões abaixo nasceram de achados registrados em [ANALYSIS_LOG.md](A
 - **Decisão:** Essas colunas só podem ser usadas para (a) construir o target (`gravidade_4`/`grave_bin`) ou (b) compor agregados **históricos** de períodos anteriores ao período previsto (ex.: "número de acidentes graves no trecho nos últimos 12 meses"). Nunca como valor do próprio acidente/período-alvo.
 - **Alternativas consideradas:** usá-las diretamente como features — rejeitada categoricamente, geraria um modelo que "prevê" o passado, inútil em produção.
 - **Justificativa:** Regra de leakage explícita da spec e das skills do projeto.
-- **Impacto:** `docs/EDA.md` §7 lista essas colunas com o rótulo "NÃO usar como feature direta"; a futura etapa de feature engineering deve implementar agregações com corte temporal estrito (apenas dados anteriores ao período previsto).
+- **Impacto:** `docs/specs/eda/EDA.md` §7 lista essas colunas com o rótulo "NÃO usar como feature direta"; a futura etapa de feature engineering deve implementar agregações com corte temporal estrito (apenas dados anteriores ao período previsto).
 
 ## D-08: Reportar Cramér's V como medida principal de força de associação, não apenas p-valor
 
@@ -102,7 +102,7 @@ Todas as decisões abaixo nasceram de achados registrados em [ANALYSIS_LOG.md](A
 - **Decisão:** Usar `fase_dia` como a variável de "iluminação/período do dia" em todas as análises e no Streamlit, documentando explicitamente essa equivalência.
 - **Alternativas consideradas:** derivar período do dia apenas a partir de `horario` (hora do relógio) — mantido como variável complementar (`hora`), mas `fase_dia` é preferível por refletir luz solar real (varia por estação/latitude), não apenas o relógio.
 - **Justificativa:** Evita inventar uma coluna inexistente e reaproveita um campo já oficial da fonte.
-- **Impacto:** `docs/EDA.md` e o Streamlit rotulam claramente `fase_dia` como "período do dia / luminosidade (proxy oficial PRF)".
+- **Impacto:** `docs/specs/eda/EDA.md` e o Streamlit rotulam claramente `fase_dia` como "período do dia / luminosidade (proxy oficial PRF)".
 
 ## D-12: Comparações ano a ano usam janela comparável (jan–jul), nunca o total bruto de 2026
 
@@ -112,3 +112,21 @@ Todas as decisões abaixo nasceram de achados registrados em [ANALYSIS_LOG.md](A
 - **Alternativas consideradas:** excluir 2026 da EDA — rejeitada, pois os 7 meses disponíveis são dados reais e úteis (ex.: para o mês corrente da análise, 2026-08); anualizar 2026 (extrapolar) — rejeitada por poder "inventar" acidentes que não ocorreram.
 - **Justificativa:** Regra "não inventar resultados" e "não confundir agregação parcial com tendência real".
 - **Impacto:** `run_eda.py` calcula `accidents_jan_jul_by_year` e `grave_pct_by_year_jan_jul` especificamente para permitir essa comparação justa; o Streamlit expõe um aviso quando o filtro de ano inclui 2026.
+
+## D-13: Truncar a série em 2026-06-23 para qualquer análise de tendência recente
+
+- **Contexto:** [D-12](#d-12) determinou usar janela comparável (jan–jul) para comparar anos, assumindo que o problema de 2026 era apenas o ano estar incompleto.
+- **Evidência:** [A-19](ANALYSIS_LOG.md#a-19--a-queda-de-volume-no-fim-da-série-é-falta-de-consolidação-da-fonte-não-redução-de-acidentes) mostra que o problema é mais profundo: os últimos 38 dias da série (após 2026-06-23) têm 492 registros contra uma mediana histórica de 188/dia, 8 dias do calendário não têm nenhum registro, e julho/2026 tem 122 acidentes contra 5.659–6.401 nos julhos anteriores. Como junho e julho de 2026 estão *dentro* da janela jan–jul, o recorte de D-12 continua contaminado.
+- **Decisão:** Adotar um corte de consolidação calculado automaticamente (`eda_utils.consolidation_cutoff`, atualmente 2026-06-23) e usá-lo em toda análise de tendência recente. Comparações entre anos passam a usar o mesmo dia do ano para todos (dia 174), não o recorte de meses.
+- **Alternativas consideradas:** (a) manter apenas D-12 — rejeitada, produz a conclusão falsa de queda de 17,8%; (b) remover 2026 da base — rejeitada, os ~33 mil registros consolidados de 2026 são dados reais e úteis; (c) extrapolar/anualizar 2026 — rejeitada por inventar acidentes que não ocorreram.
+- **Justificativa:** O corte é derivado dos dados (média móvel de 7 dias abaixo de 70% da mediana histórica de referência), não escolhido a olho, e é recalculado automaticamente se a base for atualizada.
+- **Impacto:** `run_eda.py` passa a gravar `consolidation_window` e `accidents_by_year_consolidated_window`; o Streamlit ganhou o filtro global "Excluir janela não consolidada" (desmarcado por padrão, para preservar a reprodutibilidade dos números históricos deste documento) e um alerta na página inicial. A conclusão publicável sobre 2026 passa a ser "estável (−0,4%) em relação a 2025", não "queda acentuada".
+
+## D-14: Comparações entre grupos exigem intervalo de confiança, tamanho de efeito e teste de composição
+
+- **Contexto:** A EDA compara taxas de gravidade entre UFs, rodovias, tipos de pista, fases do dia e trechos. Com n grande, qualquer diferença sai "significante" ([D-08](#d-08)), e diferenças brutas entre grupos podem ser puro efeito de composição.
+- **Evidência:** [A-21](ANALYSIS_LOG.md#a-21--parte-do-excesso-de-gravidade-do-maranhão-é-composição-de-tipo-de-pista-mas-a-maior-parte-não-é): 28% do excesso de gravidade do MA desaparece ao padronizar por `tipo_pista`. [A-20](ANALYSIS_LOG.md#a-20--o-efeito-de-feriado-é-de-véspera-e-é-de-volume-não-de-gravidade): a diferença de gravidade em vésperas de feriado tem IC de −0,34 a +1,44 p.p., ou seja, é indistinguível de zero apesar de a amostra ter 10.260 acidentes. Contrastes fortes como pista Simples vs. Dupla (+10,44 p.p.) têm h de Cohen de apenas 0,23 ("pequeno").
+- **Decisão:** Toda comparação de taxas entre grupos publicada neste projeto deve trazer: (a) IC 95% de Wilson de cada proporção; (b) diferença com IC e tamanho de efeito (h de Cohen para proporções, Cramér's V para associação categórica, ε² para Kruskal-Wallis); (c) pelo menos uma verificação de confundimento por padronização direta quando a comparação for entre grupos com composições diferentes.
+- **Alternativas consideradas:** reportar só a diferença bruta com p-valor — rejeitada por ser exatamente o erro que a disciplina aponta (concluir sem validação adequada e ignorar segmentação).
+- **Justificativa:** IC comunica precisão, tamanho de efeito comunica relevância, padronização protege contra o paradoxo de Simpson. Nenhum dos três é substituível pelos outros.
+- **Impacto:** Novas funções em `eda_utils.py` (`wilson_ci`, `two_proportion_test`, `standardized_rate`), novos blocos em `run_eda.py` (`two_proportion_tests`, `ma_standardization`, `uf_severity_rate_with_ci`) e duas páginas novas no Streamlit (✂️ Segmentação e 🧪 Validação Estatística). Rankings por UF, rodovia e trecho passam a exibir barras de erro.

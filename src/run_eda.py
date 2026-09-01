@@ -6,11 +6,11 @@ Uso:
     python src/run_eda.py
 
 Saídas:
-    reports/eda/eda_results.json   -> todos os números citados em docs/EDA.md,
+    reports/eda/eda_results.json   -> todos os números citados em docs/specs/eda/EDA.md,
                                        docs/ANALYSIS_LOG.md e docs/DECISIONS.md
     reports/eda/tables/*.csv       -> tabelas de apoio (contingência, séries)
 
-Nenhum número em docs/EDA.md, docs/ANALYSIS_LOG.md ou docs/DECISIONS.md deve
+Nenhum número em docs/specs/eda/EDA.md, docs/ANALYSIS_LOG.md ou docs/DECISIONS.md deve
 ser digitado à mão sem vir deste script (skill `eda`, regra de reprodutibilidade).
 """
 from __future__ import annotations
@@ -20,13 +20,16 @@ import os
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from eda_utils import (
     CATEGORICAL_COLS,
     NUMERIC_COLS,
+    calendar_coverage,
     cardinality_report,
     category_frequency,
     chi2_association,
+    consolidation_cutoff,
     contingency_table,
     counts_by,
     daily_series,
@@ -38,8 +41,12 @@ from eda_utils import (
     kruskal_test,
     missing_report,
     numeric_summary,
+    sentinel_report,
     severity_rate_by,
     spearman_corr,
+    standardized_rate,
+    two_proportion_test,
+    wilson_ci,
     zscore_outliers,
 )
 
@@ -178,7 +185,7 @@ def main():
     month_year = df(con, "SELECT ano, mes, count(*) n FROM acidentes_enriquecido GROUP BY 1,2 ORDER BY 1,2")
     month_year.to_csv(os.path.join(TABLES_DIR, "heatmap_mes_ano.csv"), index=False)
 
-    weekday_hour = df(con, "SELECT dia_semana, hora, count(*) n FROM acidentes_enriquecido GROUP BY 1,2")
+    weekday_hour = df(con, "SELECT dia_semana, hora, count(*) n FROM acidentes_enriquecido GROUP BY 1,2 ORDER BY 1,2")
     weekday_hour.to_csv(os.path.join(TABLES_DIR, "heatmap_diasemana_hora.csv"), index=False)
 
     # Recorrência: mesmo mês tem rank de volume semelhante entre anos completos?
@@ -217,6 +224,134 @@ def main():
     br_rate["z_pct_grave"] = (br_rate["pct_grave"] - br_rate["pct_grave"].mean()) / br_rate["pct_grave"].std(ddof=0)
     br_rate.to_csv(os.path.join(TABLES_DIR, "br_severity_rate.csv"), index=False)
     results["br_severity_outliers"] = br_rate[br_rate["z_pct_grave"].abs() > 2].sort_values("z_pct_grave").to_dict("records")
+
+    # ---- 8. Cobertura temporal e consolidação da fonte -----------------------
+    # Uma base pode não ter nenhum nulo e mesmo assim estar incompleta: dias inteiros
+    # ausentes não viram NULL, viram linhas inexistentes.
+    results["calendar_coverage"] = calendar_coverage(con)
+
+    cutoff = consolidation_cutoff(con)
+    cutoff_series = cutoff.pop("series")
+    cutoff_series.to_csv(os.path.join(TABLES_DIR, "daily_series_consolidacao.csv"), index=False)
+    results["consolidation_window"] = cutoff
+
+    # Comparação entre anos usando só a janela efetivamente consolidada de cada ano
+    doy = pd.Timestamp(cutoff["cutoff_date"]).dayofyear
+    consolidado = df(
+        con,
+        f"""
+        SELECT ano, count(*) n, sum(grave_bin) n_grave,
+               round(100.0*sum(grave_bin)/count(*), 2) pct_grave
+        FROM acidentes_enriquecido
+        WHERE dayofyear(data_inversa) <= {doy}
+        GROUP BY 1 ORDER BY 1
+        """,
+    )
+    consolidado["pct_change_vs_ano_anterior"] = (
+        (consolidado["n"].pct_change() * 100).round(2).astype(object).where(lambda c: c.notna(), None)
+    )
+    consolidado.to_csv(os.path.join(TABLES_DIR, "by_year_janela_consolidada.csv"), index=False)
+    results["accidents_by_year_consolidated_window"] = {
+        "day_of_year_cutoff": int(doy),
+        "rows": consolidado.to_dict("records"),
+    }
+
+    results["sentinel_values"] = sentinel_report(con).to_dict("records")
+
+    # ---- 9. Feriados ----------------------------------------------------------
+    daily_tipo = df(
+        con,
+        f"""
+        SELECT dia, tipo_dia, dia_semana, count(*) n, sum(grave_bin) k
+        FROM acidentes_enriquecido
+        WHERE data_inversa <= DATE '{cutoff["cutoff_date"]}'
+        GROUP BY 1,2,3
+        """,
+    )
+    resumo_tipo = (
+        daily_tipo.groupby("tipo_dia")
+        .agg(dias=("dia", "nunique"), acidentes=("n", "sum"), graves=("k", "sum"),
+             media_acidentes_dia=("n", "mean"))
+        .reset_index()
+    )
+    resumo_tipo["pct_grave"] = (resumo_tipo["graves"] / resumo_tipo["acidentes"] * 100).round(2)
+    resumo_tipo["media_acidentes_dia"] = resumo_tipo["media_acidentes_dia"].round(2)
+    resumo_tipo.to_csv(os.path.join(TABLES_DIR, "tipo_dia_feriado.csv"), index=False)
+
+    comuns = daily_tipo[daily_tipo["tipo_dia"] == "Dia comum"]
+    testes_feriado = []
+    for tipo in ["Véspera de feriado", "Feriado", "Pós-feriado"]:
+        sub = daily_tipo[daily_tipo["tipo_dia"] == tipo]
+        if len(sub) < 5:
+            continue
+        u, p_u = stats.mannwhitneyu(sub["n"].to_numpy(float), comuns["n"].to_numpy(float),
+                                    alternative="two-sided")
+        prop = two_proportion_test(int(sub["k"].sum()), int(sub["n"].sum()),
+                                   int(comuns["k"].sum()), int(comuns["n"].sum()))
+        testes_feriado.append({
+            "tipo_dia": tipo,
+            "dias": int(sub["dia"].nunique()),
+            "media_acidentes_dia": round(float(sub["n"].mean()), 2),
+            "diff_volume_pct_vs_dia_comum": round(float(sub["n"].mean() / comuns["n"].mean() - 1) * 100, 2),
+            "mannwhitney_u": float(u),
+            "mannwhitney_p": float(p_u),
+            "grave_diff_pp": round(prop["diff_pp"], 3),
+            "grave_diff_ci_pp": [round(v, 3) for v in prop["diff_ci_pp"]],
+            "grave_p_value": prop["p_value"],
+        })
+    results["holiday_effect"] = {
+        "por_tipo_de_dia": resumo_tipo.to_dict("records"),
+        "testes_vs_dia_comum": testes_feriado,
+    }
+
+    # ---- 10. Validação estatística dos principais contrastes -------------------
+    contrastes = [("tipo_pista", "Simples", "Dupla"), ("fase_dia", "Plena Noite", "Pleno dia")]
+    validacao = []
+    for col, a, b in contrastes:
+        row = df(
+            con,
+            f"SELECT {col} AS c, count(*) n, sum(grave_bin) k FROM acidentes_enriquecido "
+            f"WHERE {col} IN ('{a}', '{b}') GROUP BY 1",
+        ).set_index("c")
+        if a in row.index and b in row.index:
+            res = two_proportion_test(int(row.loc[a, "k"]), int(row.loc[a, "n"]),
+                                      int(row.loc[b, "k"]), int(row.loc[b, "n"]))
+            res.update({"variavel": col, "grupo_a": a, "grupo_b": b})
+            validacao.append(res)
+    results["two_proportion_tests"] = validacao
+
+    # Padronização direta: quanto do excesso de gravidade do MA é composição de tipo_pista?
+    ct_ma = df(
+        con,
+        """
+        SELECT tipo_pista AS estrato,
+               sum(CASE WHEN uf = 'MA' THEN 1 ELSE 0 END) n,
+               sum(CASE WHEN uf = 'MA' THEN grave_bin ELSE 0 END) n_grave,
+               sum(CASE WHEN uf <> 'MA' THEN 1 ELSE 0 END) n_fora
+        FROM acidentes_enriquecido WHERE tipo_pista IS NOT NULL GROUP BY 1
+        """,
+    )
+    pesos = (ct_ma["n"] + ct_ma["n_fora"]).astype(float)
+    pesos.index = ct_ma["estrato"]
+    std = standardized_rate(ct_ma, "estrato", pesos)
+    nacional = float(df(con, "SELECT avg(grave_bin) p FROM acidentes_enriquecido").iloc[0]["p"])
+    results["ma_standardization"] = {
+        "strata": "tipo_pista",
+        "crude_rate_ma": round(std["crude"] * 100, 2),
+        "standardized_rate_ma": round(std["standardized"] * 100, 2),
+        "national_rate": round(nacional * 100, 2),
+        "excess_explained_by_composition_pct": round(
+            (std["crude"] - std["standardized"]) / (std["crude"] - nacional) * 100, 1
+        ),
+    }
+
+    # Taxa de gravidade por UF com intervalo de confiança de Wilson
+    uf_ci = severity_rate_by(con, "uf")
+    ci_bounds = uf_ci.apply(lambda r: wilson_ci(int(r["n_grave"]), int(r["n"])), axis=1, result_type="expand")
+    uf_ci["ic95_low"] = (ci_bounds[0] * 100).round(2)
+    uf_ci["ic95_high"] = (ci_bounds[1] * 100).round(2)
+    uf_ci.to_csv(os.path.join(TABLES_DIR, "uf_severity_rate_ci.csv"), index=False)
+    results["uf_severity_rate_with_ci"] = uf_ci.to_dict("records")
 
     # ---- Save -------------------------------------------------------------
     with open(os.path.join(OUT_DIR, "eda_results.json"), "w", encoding="utf-8") as f:

@@ -29,7 +29,7 @@ tab1, tab2, tab3 = st.tabs(["Gravidade × Categóricas (Cramér's V)", "Numéric
 with tab1:
     st.subheader("Força de associação com `gravidade_4`")
     if where != "1=1":
-        st.info("Os filtros da sidebar afetam esta tabela — desative-os para reproduzir os valores de docs/EDA.md.")
+        st.info("Os filtros da sidebar afetam esta tabela — desative-os para reproduzir os valores de docs/specs/eda/EDA.md.")
     rows = []
     filtered_sql = f"(SELECT * FROM acidentes_enriquecido WHERE {where})"
     con.execute(f"CREATE OR REPLACE TEMP VIEW tmp_filtered AS SELECT * FROM {filtered_sql}")

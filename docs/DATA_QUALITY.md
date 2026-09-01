@@ -23,18 +23,25 @@ Registros por ano: 2022=64.606, 2023=67.766, 2024=73.156, 2025=72.529, 2026=33.6
 
 | Check | Resultado | Severidade | Linhas afetadas | Tratamento / Decisão |
 |---|---|---|---|---|
-| Duplicidade de `id` | 0 IDs duplicados; 0 linhas 100% duplicadas | OK | 0 (0%) | Nenhuma ação necessária. `src/preprocess.py` já deduplica por `id`. |
+| Duplicidade de `id` | 0 IDs duplicados; 0 linhas 100% duplicadas | OK | 0 (0%) | Nenhuma ação necessária. `src/pipeline.py` (módulo `preprocessing.acidentes`) já deduplica por `id`. |
 | Nulos em colunas críticas (`id`, `data_inversa`, `latitude`, `longitude`, `km`) | 0 nulos | OK | 0 (0%) | Validado também em `src/verify_data.py`. |
-| Nulos em `classificacao_acidente` | 5 nulos | Baixa | 5 (0,0016%) | Excluídos das análises de gravidade categórica; volume irrelevante. |
+| Nulos em `classificacao_acidente` | 0 nulos | OK | 0 (0%) | Os 5 nulos observados antes da modularização de `src/pipeline.py` não existem mais na camada curada atual. |
 | Nulos em `regional` / `delegacia` / `uop` | 3.132 / 3.220 / 3.365 nulos | Baixa | ~1,0–1,1% | Não são usados como features preditivas (identificam a unidade da PRF, não o local do acidente); ausência não bloqueia a EDA. |
 | Consistência `pessoas == mortos+feridos_leves+feridos_graves+ilesos+ignorados` | 16.817 divergências | **Média** | 5,39% | **Não corrigido automaticamente.** Ver Decisão [D-03](DECISIONS.md#d-03). Mantido como limitação documentada; `pessoas` não deve ser tratado como soma exata das demais colunas. |
 | Consistência `feridos == feridos_leves+feridos_graves` | 0 divergências | OK | 0% | Campo derivado internamente consistente na base. |
+| Coerência `dia_semana` × `data_inversa` | 0 divergências | OK | 0% | O rótulo textual bate com a data em 100% das linhas. |
+| `horario` convertível para `TIME` | 0 inválidos | OK | 0% | Permite derivar `hora` e `fase_dia` sem perda. |
+| Cobertura do calendário (dias sem nenhum registro) | 8 dias ausentes de 1.673 esperados | **Média** | 0,48% dos dias | Todos entre 2026-07-01 e 2026-07-14: sintoma da janela não consolidada. Ver [A-19](ANALYSIS_LOG.md#a-19--a-queda-de-volume-no-fim-da-série-é-falta-de-consolidação-da-fonte-não-redução-de-acidentes) e [D-13](DECISIONS.md#d-13). |
+| Janela final não consolidada | 38 dias (após 2026-06-23) com 492 registros vs. mediana de 188/dia | **Alta** (para análise temporal) | 0,16% das linhas | Não removido da base; truncado nas análises de tendência via corte automático ([D-13](DECISIONS.md#d-13)). |
+| Valores-sentinela `condicao_metereologica = 'Ignorado'` | 4.108 registros | Baixa | 1,32% | Categoria de "não informado" disfarçada de valor válido; não deve virar uma categoria própria em one-hot sem ressalva. |
+| `sentido_via = 'Não Informado'` | 788 registros | Baixa | 0,25% | Mesmo lote de registros com `br=0`. |
+| `tracado_via` multivalorada (contém `;`) | 70.204 registros | Informativo | 22,52% | Característica da fonte, não erro: 12 primitivas reais combinadas em uma string. Exige **multi-hot**, não one-hot. Ver [A-22](ANALYSIS_LOG.md#a-22--valores-sentinela-e-campo-multivalorado-o-que-não-aparece-em-uma-contagem-de-nulos). |
 | `km <= 0` | 1.496 registros com km=0 | Baixa/Média | 0,48% | Tratado como possível valor "não informado" (placeholder), não removido. Ver [D-04](DECISIONS.md#d-04). |
 | `veiculos == 0` / `pessoas == 0` | 0 ocorrências | OK | 0% | Nenhum acidente sem pessoas ou veículos envolvidos — consistente com o esperado. |
 | UFs fora do conjunto de 27 unidades federativas | 0 inválidas | OK | 0% | Validado em `src/verify_data.py`. |
 | Coordenadas fora da bounding box do Brasil | 0 fora do intervalo | OK | 0% | Validado em `src/verify_data.py` (lat ∈ [-35,6], lon ∈ [-75,-30]). |
 | `br == 0` (rodovia inexistente) | 788 registros | Baixa | 0,25% | Tratado como placeholder de rodovia não identificada; excluído de rankings por rodovia (ver [D-05](DECISIONS.md#d-05)). |
-| Cardinalidade de categóricas | `uf`=27, `br`=125, `municipio`=2.057, `causa_acidente`=77, `tipo_acidente`=17, `classificacao_acidente`=3(+nulo) | OK | — | Cardinalidade compatível com uso em modelos (one-hot/target encoding viável para `causa_acidente`/`tipo_acidente`; `municipio` exige agrupamento/redução se usado). |
+| Cardinalidade de categóricas | `uf`=27, `br`=125, `municipio`=2.057, `causa_acidente`=77, `tipo_acidente`=17, `classificacao_acidente`=3 | OK | — | Cardinalidade compatível com uso em modelos (one-hot/target encoding viável para `causa_acidente`/`tipo_acidente`; `municipio` exige agrupamento/redução se usado). |
 | Contagem de vítimas/veículos — outliers extremos | Ver `reports/eda/eda_results.json → numeric_anomalies` | Informativo | 0,57%–1,27% (z-score \|z\|>3) | Inspecionados manualmente (§ Anomalias do EDA.md); eventos plausíveis (multi-vítimas reais), não removidos. |
 
 ## 3. Observação metodológica sobre o método de detecção de outliers

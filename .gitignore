@@ -4,3 +4,5 @@ __pycache__/
 venv/
 .streamlit/
 .ipynb_checkpoints/
+.pytest_cache/
+*.duckdb.wal

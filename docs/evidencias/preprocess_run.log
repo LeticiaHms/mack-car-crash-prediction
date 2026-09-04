@@ -1,27 +1,40 @@
-2026-08-31 15:59:05,313 - INFO - === Etapa: pré-processamento de acidentes (PRF) ===
-2026-08-31 15:59:05,313 - INFO - Carregando 5 arquivos...
-2026-08-31 15:59:05,313 - INFO - Lendo dados/datatran2022.csv...
-2026-08-31 15:59:05,675 - INFO -   -> 64606 registros, 30 colunas em dados/datatran2022.csv
-2026-08-31 15:59:05,675 - INFO - Lendo dados/datatran2023.csv...
-2026-08-31 15:59:06,309 - INFO -   -> 67766 registros, 30 colunas em dados/datatran2023.csv
-2026-08-31 15:59:06,309 - INFO - Lendo dados/datatran2024.csv...
-2026-08-31 15:59:06,791 - INFO -   -> 73156 registros, 30 colunas em dados/datatran2024.csv
-2026-08-31 15:59:06,794 - INFO - Lendo dados/datatran2025.csv...
-2026-08-31 15:59:07,227 - INFO -   -> 72529 registros, 30 colunas em dados/datatran2025.csv
-2026-08-31 15:59:07,227 - INFO - Lendo dados/datatran2026.csv...
-2026-08-31 15:59:07,415 - INFO -   -> 33694 registros, 30 colunas em dados/datatran2026.csv
-2026-08-31 15:59:07,481 - INFO - Carregados 311751 registros no total.
-2026-08-31 15:59:07,483 - INFO - Limpando o dataframe...
-2026-08-31 15:59:08,361 - INFO - Removidas 0 duplicatas por id. Restantes: 311751
-2026-08-31 15:59:08,749 - INFO - 16817 registros (5.39%) com 'pessoas' diferente da soma de mortos+feridos_leves+feridos_graves+ilesos+ignorados (inconsistência de origem na base da PRF; não corrigida — ver documento técnico).
-2026-08-31 15:59:08,800 - INFO - Diagnóstico de outliers (IQR) calculado para: ['km', 'pessoas', 'mortos', 'feridos_leves', 'feridos_graves', 'veiculos']
-2026-08-31 15:59:08,801 - INFO - Salvando em dados/curated/acidentes_2022_2026.parquet...
-2026-08-31 15:59:09,245 - INFO - Salvamento concluído.
-2026-08-31 15:59:09,247 - INFO - Relatório de execução do pré-processamento salvo em reports/data_quality/preprocess_report.json
-2026-08-31 15:59:13,611 - INFO - === Etapa: pré-processamento de feriados nacionais (ANBIMA) ===
-2026-08-31 15:59:13,611 - INFO - Carregando dados/feriados_nacionais.xls...
-2026-08-31 15:59:13,640 - INFO -   -> 1273 linhas, 3 colunas (inclui rodapé de notas).
-2026-08-31 15:59:13,640 - INFO - Limpando o dataframe de feriados...
-2026-08-31 15:59:13,651 - INFO - Salvando em dados/curated/feriados_nacionais.parquet...
-2026-08-31 15:59:13,653 - INFO - Salvamento concluído.
-2026-08-31 15:59:13,653 - INFO - Relatório de execução do pré-processamento salvo em reports/data_quality/preprocess_feriados_report.json
+2026-09-03 23:54:12,630 - INFO - === Etapa: Raw — acidentes (PRF) e feriados (ANBIMA) ===
+2026-09-03 23:54:12,631 - INFO - Carregando 5 arquivos...
+2026-09-03 23:54:12,631 - INFO - Lendo data/raw/datatran2022.csv...
+2026-09-03 23:54:12,967 - INFO -   -> 64606 registros, 30 colunas em data/raw/datatran2022.csv
+2026-09-03 23:54:12,967 - INFO - Lendo data/raw/datatran2023.csv...
+2026-09-03 23:54:13,339 - INFO -   -> 67766 registros, 30 colunas em data/raw/datatran2023.csv
+2026-09-03 23:54:13,339 - INFO - Lendo data/raw/datatran2024.csv...
+2026-09-03 23:54:13,669 - INFO -   -> 73156 registros, 30 colunas em data/raw/datatran2024.csv
+2026-09-03 23:54:13,669 - INFO - Lendo data/raw/datatran2025.csv...
+2026-09-03 23:54:14,095 - INFO -   -> 72529 registros, 30 colunas em data/raw/datatran2025.csv
+2026-09-03 23:54:14,095 - INFO - Lendo data/raw/datatran2026.csv...
+2026-09-03 23:54:14,300 - INFO -   -> 33694 registros, 30 colunas em data/raw/datatran2026.csv
+2026-09-03 23:54:14,367 - INFO - Carregados 311751 registros no total.
+2026-09-03 23:54:18,752 - INFO - raw.acidentes materializada: 311751 linhas, 30 colunas.
+2026-09-03 23:54:18,766 - INFO - Carregando data/raw/feriados_nacionais.xls...
+2026-09-03 23:54:18,789 - INFO -   -> 1273 linhas, 3 colunas (inclui rodapé de notas).
+2026-09-03 23:54:18,807 - INFO - raw.feriados materializada: 1273 linhas, 3 colunas.
+2026-09-03 23:54:18,808 - INFO - === Etapa: Bronze — pré-processamento de acidentes (PRF) ===
+2026-09-03 23:54:20,501 - INFO - Limpando o dataframe...
+2026-09-03 23:54:21,175 - INFO - Removidas 0 duplicatas por id. Restantes: 311751
+2026-09-03 23:54:21,408 - INFO - 16817 registros (5.39%) com 'pessoas' diferente da soma de mortos+feridos_leves+feridos_graves+ilesos+ignorados (inconsistência de origem na base da PRF; não corrigida — ver documento técnico).
+2026-09-03 23:54:21,456 - INFO - Diagnóstico de outliers (IQR) calculado para: ['km', 'pessoas', 'mortos', 'feridos_leves', 'feridos_graves', 'veiculos']
+2026-09-03 23:54:21,456 - INFO - Relatório de execução do pré-processamento salvo em reports/data_quality/preprocess_report.json
+2026-09-03 23:54:25,173 - INFO - bronze.acidentes materializada: 311751 linhas, 30 colunas.
+2026-09-03 23:54:25,173 - INFO - === Etapa: Bronze — pré-processamento de feriados nacionais (ANBIMA) ===
+2026-09-03 23:54:25,177 - INFO - Limpando o dataframe de feriados...
+2026-09-03 23:54:25,186 - INFO - Relatório de execução do pré-processamento salvo em reports/data_quality/preprocess_feriados_report.json
+2026-09-03 23:54:25,192 - INFO - bronze.feriados materializada: 63 linhas, 3 colunas.
+2026-09-03 23:54:28,889 - INFO - === Etapa: construção da camada Silver ===
+2026-09-03 23:54:28,896 - INFO - Bronze carregada: 311751 linhas.
+2026-09-03 23:54:28,910 - INFO - Corte de consolidação (D-13): 2026-06-23 (38 dias sinalizados, 492 linhas removidas da Silver).
+2026-09-03 23:54:30,798 - INFO - Silver construída: 311259 linhas (41 colunas).
+2026-09-03 23:54:30,800 - INFO - Relatório da Silver salvo em reports/data_quality/silver_report.json
+2026-09-03 23:54:35,539 - INFO - silver.acidentes materializada: 311259 linhas, 41 colunas.
+2026-09-03 23:54:35,559 - INFO - === Etapa: construção da camada Gold ===
+2026-09-03 23:54:37,162 - INFO - Silver carregada: 311259 linhas, 41 colunas.
+2026-09-03 23:54:38,295 - INFO - Dicionário de features salvo em reports/gold/feature_dictionary.csv
+2026-09-03 23:54:38,297 - INFO - Features descartadas salvas em reports/gold/discarded_features.csv
+2026-09-03 23:54:38,297 - INFO - Relatório da Gold salvo em reports/gold/gold_report.json
+2026-09-03 23:54:40,221 - INFO - gold.dataset_ml materializada: 311259 linhas, 36 colunas.

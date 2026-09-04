@@ -11,6 +11,5 @@
   "linhas_dia_semana_divergente": 0,
   "linhas_fora_do_periodo_removidas": 1201,
   "linhas_saida": 63,
-  "linhas_brutas_carregadas": 1273,
-  "arquivo_processado": "dados/feriados_nacionais.xls"
+  "linhas_brutas_carregadas": 1273
 }

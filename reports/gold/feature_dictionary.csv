@@ -1,0 +1,32 @@
+feature,origem,transformacao,tipo,justificativa,risco_leakage
+uf,Bronze,nenhuma,categórica,"Localização estrutural, disponível a priori (Cramér's V=0,105 com gravidade).",nenhum
+br,Silver,0 -> NULL (br_valido=False),categórica/numérica,"Rodovia federal; br=0 é sentinela de 'não identificada' (D-05), não uma rodovia real.",nenhum
+br_valido,Silver,derivado (br <> 0),booleana,Sinaliza explicitamente o sentinela de br=0 sem descartar a linha.,nenhum
+km,Silver,<=0 -> NULL (km_valido=False),numérica,Posição no trecho; km<=0 é placeholder de 'não informado' (D-04).,nenhum
+km_valido,Silver,derivado (km > 0),booleana,Sinaliza o sentinela de km<=0 sem descartar a linha.,nenhum
+municipio,Bronze,nenhuma,categórica (alta cardinalidade),"Candidata geográfica a priori; 2.057 categorias — estratégia de encoding (target/frequency) fica para a etapa de ML, após o split temporal existir, para não vazar estatística de teste.",nenhum
+latitude,Silver,0 -> NULL (geocoord_valido=False),numérica,Localização contínua do evento.,nenhum
+longitude,Silver,0 -> NULL (geocoord_valido=False),numérica,Localização contínua do evento.,nenhum
+geocoord_valido,Silver,derivado (lat<>0 e lon<>0),booleana,Sinaliza coordenada nula (ponto no Golfo da Guiné) sem descartar a linha.,nenhum
+tipo_pista,Bronze,nenhuma,categórica,"Achado estrutural mais forte entre as variáveis a priori: pista simples +10,44 p.p. de gravidade vs. dupla (D-14).",nenhum
+sentido_via,Bronze,nenhuma,categórica,"'Não Informado' já é categoria autoexplicativa, sem necessidade de flag extra.",nenhum
+uso_solo,Bronze,nenhuma,categórica (2 níveis),"Diferença observada urbano vs. rural (26,20% vs. 29,85% grave).",nenhum
+mes,Silver (derivado),nenhuma,numérica (1-12),"Mantido apesar do sinal fraco isolado (V=0,008) por potencial de interação; sem transformação cíclica (ver descarte).",nenhum
+dia_semana,Bronze,nenhuma,categórica (7 níveis),Fim de semana (sáb/dom) com gravidade um pouco acima do meio de semana.,nenhum
+fim_de_semana,Silver (derivado),"dia_semana in {sábado, domingo}",booleana,Simplificação direta do padrão observado de fim de semana.,nenhum
+hora,Silver (derivado),extraída de horario::TIME,numérica (0-23),"Pico de gravidade às 19h, distinto do pico de volume (18h).",nenhum
+hora_sin,Gold (derivado),sin(2*pi*hora/24),numérica cíclica,"Captura a continuidade 23h->0h que a hora inteira não representa; hora tem sinal moderado (V=0,097) e padrão diurno real.",nenhum
+hora_cos,Gold (derivado),cos(2*pi*hora/24),numérica cíclica,Par do seno para reconstrução unívoca do ciclo de 24h.,nenhum
+fase_dia,Bronze,nenhuma,categórica (4 níveis),"Proxy oficial de iluminação (D-11); plena noite 32,57% vs. pleno dia 25,29% de gravidade.",nenhum
+tracado_reta,Silver (derivado de tracado_via),multi-hot: 'Reta' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_curva,Silver (derivado de tracado_via),multi-hot: 'Curva' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_aclive,Silver (derivado de tracado_via),multi-hot: 'Aclive' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_declive,Silver (derivado de tracado_via),multi-hot: 'Declive' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_interseccao_de_vias,Silver (derivado de tracado_via),multi-hot: 'Interseção de Vias' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_retorno_regulamentado,Silver (derivado de tracado_via),multi-hot: 'Retorno Regulamentado' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_rotatoria,Silver (derivado de tracado_via),multi-hot: 'Rotatória' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_ponte,Silver (derivado de tracado_via),multi-hot: 'Ponte' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_viaduto,Silver (derivado de tracado_via),multi-hot: 'Viaduto' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_em_obras,Silver (derivado de tracado_via),multi-hot: 'Em Obras' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_desvio_temporario,Silver (derivado de tracado_via),multi-hot: 'Desvio Temporário' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum
+tracado_tunel,Silver (derivado de tracado_via),multi-hot: 'Túnel' in tracado_via.split(';'),booleana,"tracado_via é multivalorado em 22,52% dos registros; multi-hot evita explodir a cardinalidade (1.223 combinações) que o one-hot da string produziria.",nenhum

@@ -51,12 +51,5 @@
     }
   },
   "linhas_saida": 311751,
-  "linhas_brutas_carregadas": 311751,
-  "arquivos_processados": [
-    "dados/datatran2022.csv",
-    "dados/datatran2023.csv",
-    "dados/datatran2024.csv",
-    "dados/datatran2025.csv",
-    "dados/datatran2026.csv"
-  ]
+  "linhas_brutas_carregadas": 311751
 }

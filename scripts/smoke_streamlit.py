@@ -5,7 +5,7 @@ Uso, a partir da raiz do projeto:
     python scripts/smoke_streamlit.py            # estado padrão de cada página
     python scripts/smoke_streamlit.py --widgets  # + cada estado alternativo de radio/checkbox
 
-Serve para garantir que uma mudança em `src/eda_utils.py` ou em `streamlit/common.py`
+Serve para garantir que uma mudança em `src/eda/utils.py` ou em `app/common.py`
 não quebrou nenhuma página — o Streamlit engole exceções de página em silêncio quando
 rodando no navegador, então o erro só apareceria para quem estivesse olhando a aba certa.
 """
@@ -19,9 +19,9 @@ from streamlit.testing.v1 import AppTest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
-sys.path.insert(0, os.path.join(ROOT, "streamlit"))  # as páginas importam `common`
+sys.path.insert(0, os.path.join(ROOT, "app"))  # as páginas importam `common`
 
-PAGES = ["streamlit/app.py"] + sorted(glob.glob("streamlit/pages/*.py"))
+PAGES = ["app/app.py", "app/home_view.py"] + sorted(glob.glob("app/pages/*.py"))
 
 
 def _abs(path: str) -> str:

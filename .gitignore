@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.streamlit/
+.ipynb_checkpoints/
+.pytest_cache/
+*.duckdb.wal
+
+# Modelo grande demais para versionar (~104MB) e não é o modelo final —
+# regenerável via `python -m src.ml.train` (ver docs/entregas/etapa3-modelagem.md).
+reports/ml/models/random_forest.joblib

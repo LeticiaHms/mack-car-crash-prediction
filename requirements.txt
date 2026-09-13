@@ -1,3 +1,13 @@
 pandas
 pyarrow
+xlrd
 numpy
+duckdb
+scipy
+scikit-learn
+streamlit
+plotly
+pytest
+xgboost
+matplotlib
+joblib

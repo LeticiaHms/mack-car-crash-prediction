@@ -1,0 +1,67 @@
+{
+  "rows_silver": 311259,
+  "rows_gold": 311259,
+  "n_feature_columns": 31,
+  "n_id_columns": 3,
+  "n_target_columns": 2,
+  "feature_columns": [
+    "uf",
+    "br",
+    "br_valido",
+    "km",
+    "km_valido",
+    "municipio",
+    "latitude",
+    "longitude",
+    "geocoord_valido",
+    "tipo_pista",
+    "sentido_via",
+    "uso_solo",
+    "tracado_reta",
+    "tracado_curva",
+    "tracado_aclive",
+    "tracado_declive",
+    "tracado_interseccao_de_vias",
+    "tracado_retorno_regulamentado",
+    "tracado_rotatoria",
+    "tracado_ponte",
+    "tracado_viaduto",
+    "tracado_em_obras",
+    "tracado_desvio_temporario",
+    "tracado_tunel",
+    "mes",
+    "dia_semana",
+    "fim_de_semana",
+    "hora",
+    "hora_sin",
+    "hora_cos",
+    "fase_dia"
+  ],
+  "id_columns": [
+    "id",
+    "data_inversa",
+    "ano"
+  ],
+  "target_columns": [
+    "grave_bin",
+    "gravidade_4"
+  ],
+  "leakage_columns_checked": [
+    "causa_acidente",
+    "classificacao_acidente",
+    "feridos",
+    "feridos_graves",
+    "feridos_leves",
+    "ignorados",
+    "ilesos",
+    "mortos",
+    "pessoas",
+    "tipo_acidente",
+    "veiculos"
+  ],
+  "leakage_guard": "PASSOU — nenhuma coluna de leakage presente nas features.",
+  "target_distribution_grave_bin": {
+    "0": 223250,
+    "1": 88009
+  }
+}

@@ -1,0 +1,62 @@
+2026-09-03 23:54:25,192 - INFO - === Etapa: validação da camada Bronze — acidentes ===
+2026-09-03 23:54:25,192 - INFO - Validando 311751 registros de acidentes...
+2026-09-03 23:54:25,192 - INFO - Validando 311751 registros de acidentes...
+2026-09-03 23:54:25,192 - INFO - ✓ quantidade_colunas
+2026-09-03 23:54:25,192 - INFO - ✓ schema_nomes_e_ordem
+2026-09-03 23:54:25,193 - INFO - ✓ dtype_id
+2026-09-03 23:54:25,193 - INFO - ✓ dtype_data_inversa
+2026-09-03 23:54:25,193 - INFO - ✓ dtype_latitude
+2026-09-03 23:54:25,193 - INFO - ✓ dtype_longitude
+2026-09-03 23:54:25,194 - INFO - ✓ dtype_km
+2026-09-03 23:54:25,194 - INFO - ✓ dtype_pessoas
+2026-09-03 23:54:25,194 - INFO - ✓ dtype_mortos
+2026-09-03 23:54:25,194 - INFO - ✓ dtype_feridos_leves
+2026-09-03 23:54:25,194 - INFO - ✓ dtype_feridos_graves
+2026-09-03 23:54:25,195 - INFO - ✓ dtype_ilesos
+2026-09-03 23:54:25,195 - INFO - ✓ dtype_ignorados
+2026-09-03 23:54:25,195 - INFO - ✓ dtype_feridos
+2026-09-03 23:54:25,195 - INFO - ✓ dtype_veiculos
+2026-09-03 23:54:25,203 - INFO - ✓ unicidade_id
+2026-09-03 23:54:25,431 - INFO - ✓ linhas_totalmente_duplicadas
+2026-09-03 23:54:25,442 - INFO - ✓ sem_nulos_id
+2026-09-03 23:54:25,442 - INFO - ✓ sem_nulos_data_inversa
+2026-09-03 23:54:25,443 - INFO - ✓ sem_nulos_latitude
+2026-09-03 23:54:25,444 - INFO - ✓ sem_nulos_longitude
+2026-09-03 23:54:25,444 - INFO - ✓ sem_nulos_km
+2026-09-03 23:54:25,444 - INFO - ✓ sem_nulos_classificacao_acidente
+2026-09-03 23:54:25,445 - INFO - ✓ nulos_regional_dentro_do_esperado
+2026-09-03 23:54:25,446 - INFO - ✓ nulos_delegacia_dentro_do_esperado
+2026-09-03 23:54:25,447 - INFO - ✓ nulos_uop_dentro_do_esperado
+2026-09-03 23:54:25,454 - INFO - ✓ anos_dentro_do_esperado
+2026-09-03 23:54:25,458 - INFO - ✓ dias_semana_validos
+2026-09-03 23:54:25,462 - INFO - ✓ ufs_validas
+2026-09-03 23:54:25,464 - INFO - ✓ latitude_dentro_do_brasil
+2026-09-03 23:54:25,466 - INFO - ✓ longitude_dentro_do_brasil
+2026-09-03 23:54:25,467 - INFO - ✓ nao_negativo_pessoas
+2026-09-03 23:54:25,468 - INFO - ✓ nao_negativo_mortos
+2026-09-03 23:54:25,469 - INFO - ✓ nao_negativo_feridos_leves
+2026-09-03 23:54:25,470 - INFO - ✓ nao_negativo_feridos_graves
+2026-09-03 23:54:25,471 - INFO - ✓ nao_negativo_ilesos
+2026-09-03 23:54:25,472 - INFO - ✓ nao_negativo_ignorados
+2026-09-03 23:54:25,472 - INFO - ✓ nao_negativo_feridos
+2026-09-03 23:54:25,473 - INFO - ✓ nao_negativo_veiculos
+2026-09-03 23:54:25,475 - INFO - ✓ consistencia_feridos_leves_mais_graves_igual_feridos
+2026-09-03 23:54:25,479 - WARNING - ⚠ consistencia_pessoas_igual_soma_categorias: 16817 registros (5.39%) com 'pessoas' != soma das categorias (inconsistência de origem na base da PRF, documentada e monitorada, não corrigida)
+2026-09-03 23:54:28,881 - INFO - ✓ consistencia_classificacao_vs_vitimas
+2026-09-03 23:54:28,882 - INFO - Relatório de validação salvo em reports/data_quality/verify_acidentes_report.json
+2026-09-03 23:54:28,882 - INFO - Todas as validações críticas de acidentes passaram com sucesso.
+2026-09-03 23:54:28,883 - INFO - === Etapa: validação da camada Bronze — feriados ===
+2026-09-03 23:54:28,883 - INFO - Validando 63 registros de feriados...
+2026-09-03 23:54:28,883 - INFO - Validando 63 registros de feriados...
+2026-09-03 23:54:28,883 - INFO - ✓ schema_nomes_e_ordem
+2026-09-03 23:54:28,883 - INFO - ✓ dtype_data
+2026-09-03 23:54:28,884 - INFO - ✓ unicidade_data_feriado
+2026-09-03 23:54:28,885 - INFO - ✓ linhas_totalmente_duplicadas
+2026-09-03 23:54:28,886 - INFO - ✓ sem_nulos_data
+2026-09-03 23:54:28,886 - INFO - ✓ sem_nulos_dia_semana
+2026-09-03 23:54:28,886 - INFO - ✓ sem_nulos_feriado
+2026-09-03 23:54:28,886 - INFO - ✓ dias_semana_validos
+2026-09-03 23:54:28,887 - INFO - ✓ anos_dentro_do_periodo_do_projeto
+2026-09-03 23:54:28,888 - INFO - ✓ consistencia_dia_semana_vs_data
+2026-09-03 23:54:28,888 - INFO - Relatório de validação salvo em reports/data_quality/verify_feriados_report.json
+2026-09-03 23:54:28,889 - INFO - Todas as validações críticas de feriados passaram com sucesso.

@@ -1,0 +1,23 @@
+feature,motivo_descarte
+mortos,Leakage — resultado do próprio acidente (D-07); usada só para construir o target.
+feridos_leves,Leakage — resultado do próprio acidente (D-07); usada só para construir o target.
+feridos_graves,Leakage — resultado do próprio acidente (D-07); usada só para construir o target.
+feridos,Leakage — resultado do próprio acidente (D-07).
+ilesos,Leakage — resultado do próprio acidente (D-07).
+ignorados,Leakage — resultado do próprio acidente (D-07).
+pessoas,"Leakage — resultado do próprio acidente (D-07); além disso diverge da soma das categorias em 5,39% dos registros (D-03)."
+veiculos,Leakage — resultado do próprio acidente (contagem apurada no boletim de ocorrência).
+classificacao_acidente,Leakage — é a classificação oficial do desfecho; usada só para derivar gravidade_4/grave_bin (D-01/D-02).
+causa_acidente,"Leakage — apurada após o evento; apesar de ser a 2ª maior associação com gravidade (V=0,244), não está disponível no momento da previsão (D-07)."
+tipo_acidente,"Leakage — apurada após o evento; é a maior associação com gravidade (V=0,300), mas não disponível a priori (D-07)."
+condicao_metereologica,"Não disponível a priori em produção (exigiria previsão meteorológica) e sinal fraco (V=0,034)."
+regional,"Identifica a unidade da PRF, não o local do acidente; ~1% nulos, sem relação com o desfecho."
+delegacia,"Identifica a unidade da PRF, não o local do acidente; ~1% nulos, sem relação com o desfecho."
+uop,"Identifica a unidade da PRF, não o local do acidente; ~1% nulos, sem relação com o desfecho."
+horario,Substituída pelas derivadas hora/hora_sin/hora_cos.
+tracado_via,Substituída pelo multi-hot (12 colunas tracado_*); string original mistura até 2 primitivas e infla a cardinalidade aparente para 1.223 categorias.
+feriado,"EDA (D-14) mostrou efeito só no volume de acidentes, não na gravidade condicional (IC da diferença cruza zero)."
+vespera_de_feriado,"EDA (D-14/A-20) mostrou +5,75% de volume, mas o IC da diferença de gravidade cruza zero (-0,34 a +1,44 p.p.) — sem sinal para grave_bin."
+pos_feriado,"EDA (D-14) mostrou efeito só no volume de acidentes, não na gravidade condicional."
+mes_sin/mes_cos,"mes tem Cramér's V=0,008 com gravidade — praticamente nulo; sazonalidade real é de volume, não de gravidade (§4.6 da EDA)."
+dia_semana_sin/dia_semana_cos,dia_semana já é categórica de baixíssima cardinalidade (7 níveis); cíclico não agrega frente à codificação direta.

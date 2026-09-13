@@ -1,0 +1,15 @@
+{
+  "linhas_entrada": 1273,
+  "linhas_rodape_removidas": 9,
+  "nulos_por_coluna": {
+    "data": 0,
+    "dia_semana": 0,
+    "feriado": 0
+  },
+  "duplicatas_data_feriado_removidas": 0,
+  "linhas_completamente_duplicadas": 0,
+  "linhas_dia_semana_divergente": 0,
+  "linhas_fora_do_periodo_removidas": 1201,
+  "linhas_saida": 63,
+  "linhas_brutas_carregadas": 1273
+}

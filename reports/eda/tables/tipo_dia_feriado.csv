@@ -1,0 +1,5 @@
+tipo_dia,dias,acidentes,graves,media_acidentes_dia,pct_grave
+Dia comum,1475,280600,79222.0,190.24,28.23
+Feriado,57,10756,3060.0,188.7,28.45
+Pós-feriado,52,9643,2774.0,185.44,28.77
+Véspera de feriado,51,10260,2953.0,201.18,28.78

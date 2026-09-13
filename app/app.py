@@ -41,6 +41,9 @@ pg = st.navigation(
             st.Page("pages/9_🧪_Validacao_Estatistica.py", title="Validação Estatística", icon="🧪"),
             st.Page("pages/10_🧠_Features_ML.py", title="Features ML", icon="🧠"),
         ],
+        "Modelagem": [
+            st.Page("pages/11_🤖_Modelagem.py", title="Modelagem", icon="🤖"),
+        ],
     }
 )
 pg.run()

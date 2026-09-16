@@ -74,11 +74,11 @@ CSV / XLS (data/raw/)
 | **Coleta de dados** | Etapa 1 | ✅ | CSVs anuais da PRF (2022–2026) + calendário de feriados, com dicionário de dados e critérios de seleção — [`etapa1-coleta.md`](docs/entregas/etapa1-coleta.md) |
 | **Pré-processamento** | Etapa 1 | ✅ | Limpeza, tipagem, deduplicação e validação → camadas Bronze/Silver no DuckDB — [`etapa1-pre-processamento.md`](docs/entregas/etapa1-pre-processamento.md) |
 | **Análise Exploratória** | Etapa 2 | ✅ | Distribuições, padrões, sazonalidade, anomalias, correlações e mapa de *data leakage*, com dashboard interativo — [`etapa2-eda.md`](docs/entregas/etapa2-eda.md) |
-| **Construção de Modelos** | Etapa 3 | ✅ | Split temporal 70/15/15, 3 modelos de classificação (Regressão Logística, Árvore de Decisão, Random Forest), avaliação por **Accuracy/Precision/Recall/F1/ROC-AUC** (conjunto de teste) e interpretabilidade simples — [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) |
+| **Construção de Modelos** | Etapa 3 | ✅ | Split temporal 70/15/15, 4 modelos de classificação (Regressão Logística, Árvore de Decisão, Random Forest, XGBoost), avaliação por **Accuracy/Precision/Recall/F1/ROC-AUC** (conjunto de teste) e interpretabilidade simples — [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) |
 
 Coleta e pré-processamento compõem juntos a Etapa 1 da disciplina — daí o prefixo `etapa1-` nos dois documentos.
 
-**Visualização** atravessa todas as fases: o dashboard Streamlit expõe a qualidade dos dados, a análise exploratória e a avaliação dos modelos (página 🤖 Modelagem).
+**Visualização** atravessa todas as fases: o dashboard Streamlit expõe a qualidade dos dados, a análise exploratória e a avaliação dos modelos (página 🏆 Resultados Modelagem).
 
 ---
 
@@ -118,7 +118,7 @@ Regenera `reports/eda/eda_results.json` e as 26 tabelas de `reports/eda/tables/`
 python -m src.ml.modelagem
 ```
 
-Regenera `reports/ml/metrics.csv` e os 4 gráficos (`class_distribution.png`, `confusion_matrix.png`, `roc_curve.png`, `metric_comparison.png`). Leva menos de 1 minuto. A página 🤖 Modelagem do dashboard **não** depende deste passo em tempo real — ela lê os artefatos já gerados, nunca retreina ao vivo.
+Regenera `reports/ml/metrics.csv` e os 4 gráficos (`class_distribution.png`, `confusion_matrix.png`, `roc_curve.png`, `metric_comparison.png`). Leva menos de 1 minuto. A página 🏆 Resultados Modelagem do dashboard **não** depende deste passo em tempo real — ela lê os artefatos já gerados, nunca retreina ao vivo.
 
 ### 4. Subir o dashboard
 
@@ -161,17 +161,19 @@ Uma página quebrada não derruba as outras no navegador — o erro só aparece 
 
 ## 📊 O dashboard
 
-14 páginas, agrupadas no menu lateral (`st.navigation`, em `app/app.py`) num fluxo de Data Science — do geral ao específico:
+15 páginas, agrupadas no menu lateral (`st.navigation`, em `app/app.py`) num fluxo de Data Science — do geral ao específico:
 
 | Grupo | Páginas |
 |---|---|
-| **Visão Geral** | 🚧 Visão Geral (Home) · 💡 Insights e Hipóteses (síntese final) |
+| **Visão Geral** | 🚧 Visão Geral (Home) |
+| **Resultados** | 📋 Resultados EDA (resumo executivo) · 🏆 Resultados Modelagem (comparação dos 4 modelos) |
 | **Qualidade e Estrutura** | 🧹 Qualidade dos Dados · 🚨 Anomalias · ✂️ Segmentação |
-| **Análise Exploratória** | 📊 Distribuições · 🎯 Gravidade · 📈 Tendências · 🔄 Sazonalidade · 🔗 Correlações · 🗺️ Geografia |
+| **Análise Exploratória** | 📊 Distribuições · 🎯 Gravidade · 📈 Tendências · 🔄 Sazonalidade · 🔗 Correlações · 🗺️ Geografia · 💡 Insights e Hipóteses (síntese final) |
 | **Preparação para ML** | 🧪 Validação Estatística · 🧠 Features ML |
-| **Modelagem** | 🤖 Modelagem (comparação de modelos e interpretabilidade simples) |
 
-Os **filtros globais da sidebar** (ano, UF, gravidade, tipo de acidente, rodovia, período do dia, clima, tipo de pista) valem para a maioria das páginas — as que avaliam qualidade sobre a base inteira (🧹 Qualidade dos Dados, 💡 Insights e Hipóteses) ignoram o filtro de propósito, para não esconder o problema que se quer encontrar.
+O grupo **Resultados** é um resumo executivo (para quem quer o essencial sem navegar pelas páginas de aprofundamento); os demais grupos são as páginas de registro/análise profunda, com todo o detalhamento estatístico (IC, tamanho de efeito, hipóteses refutáveis) — ver D-23 em [`DECISIONS.md`](docs/decisoes/DECISIONS.md).
+
+Os **filtros globais da sidebar** (ano, UF, gravidade, tipo de acidente, rodovia, período do dia, clima, tipo de pista) valem para a maioria das páginas — as que avaliam qualidade sobre a base inteira (🧹 Qualidade dos Dados, 📋 Resultados EDA, 💡 Insights e Hipóteses) ignoram o filtro de propósito, para não esconder o problema que se quer encontrar.
 
 O corte da janela final não consolidada da série (registro que a PRF ainda não terminou de preencher) não é mais um filtro da sidebar — a camada **Silver** já aplica esse corte diretamente no dado. O diagnóstico completo está na página 🧹 Qualidade dos Dados.
 
@@ -247,7 +249,7 @@ app/                        # aplicação Streamlit (independente do pipeline)
   app.py                     # roteador (st.navigation) + página inicial
   common.py                  # conexão (somente leitura), cache e filtros globais
   home_view.py               # conteúdo da página "Visão Geral"
-  pages/                     # as demais 13 páginas, agrupadas via st.navigation
+  pages/                     # as demais 14 páginas, agrupadas via st.navigation
 tests/                       # banco, dependências, qualidade, gold, conexão
 reports/                     # resultados gerados (nunca código-fonte)
   data_quality/              # relatórios de validação do pipeline
@@ -270,7 +272,7 @@ Não há pasta `archive/`: a auditoria que precedeu esta reorganização não en
 |---|---|
 | [`docs/entregas/`](docs/entregas/) | Relatório técnico entregue em cada etapa da disciplina (coleta, pré-processamento, EDA, modelagem) |
 | [`docs/evidencias/`](docs/evidencias/) | Logs brutos da última execução real do pipeline (`preprocess_run.log`, `verify_run.log`) |
-| [`docs/decisoes/DECISIONS.md`](docs/decisoes/DECISIONS.md) | Decisões técnicas (D-01…D-21), com as alternativas descartadas e o porquê |
+| [`docs/decisoes/DECISIONS.md`](docs/decisoes/DECISIONS.md) | Decisões técnicas (D-01…D-25), com as alternativas descartadas e o porquê |
 | [`docs/analises/`](docs/analises/) | `EDA.md` (documento narrativo da exploração), `ANALYSIS_LOG.md` (achado → método → resultado → limitação) e `DATA_QUALITY.md` (relatório de qualidade) |
 | [`docs/specs/`](docs/specs/) | Especificação original do projeto e do pré-processamento (`spec.md`, `requirements.md`, `design.md`, `tasks.md`) — planejamento anterior à implementação, mantido como referência histórica |
 | [`docs/GLOSSARIO.md`](docs/GLOSSARIO.md) | Termos técnicos (z-score, qui-quadrado, Cramér's V, intervalo de confiança, data leakage…) com exemplos desta base |
@@ -281,10 +283,11 @@ Quem estiver chegando agora no projeto: comece pelo [`GLOSSARIO.md`](docs/GLOSSA
 
 ## 🚀 Próximas etapas
 
-A Etapa 3 (Construção de Modelos) está concluída, em versão simplificada e didática — ver [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) para o relatório completo (split, modelos, métricas, interpretabilidade) e a página 🤖 Modelagem do dashboard. Nenhum modelo supera claramente os demais: os três (Regressão Logística, Árvore de Decisão, Random Forest) ficam próximos em todas as métricas, com ROC-AUC ~0,62 e F1 ~0,43–0,44 no teste — sinal de que o teto de desempenho está no conteúdo informativo das features disponíveis, não no algoritmo escolhido. Possíveis próximos passos, fora do escopo desta etapa:
+A Etapa 3 (Construção de Modelos) está concluída, em versão simplificada e didática — ver [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) para o relatório completo (split, modelos, métricas, interpretabilidade) e a página **Resultados Modelagem** do dashboard. Quatro modelos foram comparados (Regressão Logística, Árvore de Decisão, Random Forest e XGBoost); o XGBoost lidera todas as métricas, mas por margem pequena (ROC-AUC 0,63 vs. 0,61–0,62 dos demais, F1 0,439 vs. 0,427–0,435) — sinal de que o teto de desempenho está no conteúdo informativo das features disponíveis, não no algoritmo escolhido. Possíveis próximos passos, fora do escopo desta etapa:
 
 - Features de histórico do trecho (contagem/taxa de acidentes graves por BR/UF/km em janelas anteriores ao período previsto);
 - Encoding mais rico para `municipio` (descartado nesta etapa por simplicidade);
+- Busca de hiperparâmetros sobre o XGBoost (o tuning já testado antes desta simplificação mostrou ganho isolado desprezível — D-20);
 - Calibração de limiar/probabilidade antes de qualquer uso operacional.
 
 As hipóteses formuladas para orientar essa etapa (H-01 a H-06, cada uma com critério de confirmação/refutação) estão na página 💡 Insights e Hipóteses do dashboard, e são citadas pontualmente em [`docs/analises/ANALYSIS_LOG.md`](docs/analises/ANALYSIS_LOG.md).
@@ -293,7 +296,7 @@ As hipóteses formuladas para orientar essa etapa (H-01 a H-06, cada uma com cri
 
 ## 🛠️ Tecnologias
 
-`Python` · `Pandas` · `DuckDB` · `Scikit-learn` · `Matplotlib` · `Streamlit` · `Plotly` · `SciPy` · `Machine Learning`
+`Python` · `Pandas` · `DuckDB` · `Scikit-learn` · `XGBoost` · `Matplotlib` · `Streamlit` · `Plotly` · `SciPy` · `Machine Learning`
 
 ---
 

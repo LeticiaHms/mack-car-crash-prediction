@@ -5,6 +5,7 @@ numpy
 duckdb
 scipy
 scikit-learn
+xgboost
 streamlit
 plotly
 pytest

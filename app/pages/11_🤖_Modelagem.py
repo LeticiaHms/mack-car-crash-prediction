@@ -16,7 +16,7 @@ REPORT_DIR = "reports/ml"
 
 st.title("🤖 Modelagem — previsão de gravidade de acidentes")
 st.caption(
-    "Esta página mostra os resultados da Etapa 3 (Machine Learning): comparação de 3 modelos de "
+    "Esta página mostra os resultados da Etapa 3 (Machine Learning): comparação de 4 modelos de "
     "classificação treinados para prever se um acidente será grave/fatal. Os números vêm de "
     "`reports/ml/` — nada é recalculado ao vivo. Detalhes completos em `docs/entregas/etapa3-modelagem.md`."
 )
@@ -62,7 +62,7 @@ st.dataframe(
     width="stretch",
 )
 
-st.image(os.path.join(REPORT_DIR, "metric_comparison.png"), caption="Comparação das 5 métricas entre os 3 modelos (conjunto de teste).")
+st.image(os.path.join(REPORT_DIR, "metric_comparison.png"), caption="Comparação das 5 métricas entre os 4 modelos (conjunto de teste).")
 
 with st.expander("📖 O que significa cada métrica?"):
     glossario = [
@@ -115,8 +115,8 @@ st.divider()
 # 4. Matriz de confusão e curva ROC
 # ============================================================================
 st.header("🔍 Como cada modelo erra e acerta")
-st.image(os.path.join(REPORT_DIR, "confusion_matrix.png"), caption="Matriz de confusão dos 3 modelos no conjunto de teste.")
-st.image(os.path.join(REPORT_DIR, "roc_curve.png"), caption="Curva ROC comparando os 3 modelos — quanto mais afastada da linha pontilhada, melhor.")
+st.image(os.path.join(REPORT_DIR, "confusion_matrix.png"), caption="Matriz de confusão dos 4 modelos no conjunto de teste.")
+st.image(os.path.join(REPORT_DIR, "roc_curve.png"), caption="Curva ROC comparando os 4 modelos — quanto mais afastada da linha pontilhada, melhor.")
 
 st.divider()
 
@@ -125,7 +125,7 @@ st.divider()
 # ============================================================================
 st.header("🧠 O que os resultados indicam")
 st.write(
-    "Os 3 modelos ficam próximos entre si em todas as métricas — nenhum vence com folga. "
+    "Os 4 modelos ficam próximos entre si em todas as métricas — o XGBoost lidera todas elas, mas por margem pequena. "
     "Isso sugere que o teto de desempenho está no **conteúdo informativo das features disponíveis** "
     "(localização, tipo de pista, horário), não na escolha do algoritmo: as características mais "
     "fortemente associadas à gravidade do acidente (tipo/causa do acidente) foram corretamente "
@@ -134,6 +134,64 @@ st.write(
 st.caption(
     "⚠️ Importância de feature (nas árvores) ou coeficiente (na Regressão Logística) indica associação "
     "usada pelo modelo, não causalidade."
+)
+
+with st.expander("🔍 Por que os 4 resultados ficam tão próximos?", expanded=True):
+    st.markdown(
+        "Testamos os **quatro paradigmas centrais** de classificação num único problema: modelo "
+        "**linear** (Regressão Logística), **árvore única** (Árvore de Decisão), ensemble por "
+        "**bagging** (Random Forest, várias árvores votando em paralelo) e ensemble por **boosting** "
+        "(XGBoost, cada árvore corrige o erro residual das anteriores). Se o gargalo fosse o "
+        "*algoritmo*, esperaríamos uma diferença grande entre eles — um mecanismo mais sofisticado "
+        "(boosting) deveria disparar na frente. Não é o que acontece: o XGBoost vence, mas por "
+        "margem pequena (no máximo +0,010 de ROC-AUC e +0,004 de F1 sobre a Regressão Logística)."
+    )
+    st.markdown(
+        "A explicação mais consistente com a EDA (Etapa 2): as variáveis **mais fortemente associadas** "
+        "à gravidade de um acidente — `tipo_acidente` (Cramér's V ≈ 0,30) e `causa_acidente` (≈ 0,24) — "
+        "foram **corretamente excluídas** do treino porque só existem depois do acidente acontecer "
+        "(*data leakage*: usá-las seria \"trapacear\", já que no momento da previsão elas não existem "
+        "ainda). Sobra só informação *a priori* (localização, tipo de pista, horário), cuja melhor "
+        "variável isolada (`br`/`uf`) tem associação bem mais fraca (≈ 0,11). **Nenhum algoritmo, por "
+        "mais sofisticado, extrai de um conjunto de features um sinal que elas não carregam.** Um teto "
+        "de ROC-AUC ~0,61–0,63 é consistente entre os quatro porque o teto é do *dado disponível*, não "
+        "do *modelo*."
+    )
+    st.caption(
+        "Isso já havia sido testado antes com busca de hiperparâmetros sobre o XGBoost (ver D-20 em "
+        "`docs/decisoes/DECISIONS.md`): o tuning por si só rendeu ganho quase nulo — reforça que o "
+        "limite não está em ajustar melhor o algoritmo."
+    )
+
+st.divider()
+
+# ============================================================================
+# 6. Próximos passos
+# ============================================================================
+st.header("🚀 Próximos passos")
+st.write(
+    "Como o gargalo identificado é o **conteúdo informativo das features**, os próximos passos "
+    "priorizam dar ao modelo informação nova, não trocar de algoritmo:"
+)
+st.markdown(
+    "- **Histórico do trecho** (hipótese H-01): taxa de acidentes graves anteriores por BR/UF/faixa "
+    "de km, calculada só com janela estritamente passada — candidata mais forte, porque aproxima "
+    "(sem vazar) o sinal de `tipo_acidente`/`causa_acidente` que hoje é descartado.\n"
+    "- **Perfil histórico de causa/tipo por trecho** (hipótese H-06): ex. % de colisões frontais nos "
+    "últimos 12 meses daquele trecho — maior risco de vazamento entre as hipóteses, exige corte "
+    "temporal rigoroso (ver D-07).\n"
+    "- **Encoding mais rico para `municipio`** (2.057 categorias, descartada nesta versão por "
+    "simplicidade) — frequência ou taxa histórica calculada só no treino.\n"
+    "- **Denominador de exposição** (tráfego/veículos·km por trecho, hoje ausente da base) — sem ele, "
+    "\"perigoso\" e \"movimentado\" continuam indistinguíveis nas variáveis geográficas.\n"
+    "- **Calibração de probabilidade e escolha de limiar** antes de qualquer uso operacional — hoje o "
+    "limiar de decisão é 0,5 por padrão, não otimizado para o custo real de falso negativo vs. falso "
+    "positivo."
+)
+st.caption(
+    "Fora do radar de próximos passos: mais busca de hiperparâmetros ou mais algoritmos. D-20 já "
+    "mostrou tuning com ganho desprezível, e este experimento (4 paradigmas distintos) mostra que "
+    "trocar de algoritmo tem teto baixo enquanto as features não mudarem."
 )
 
 st.divider()

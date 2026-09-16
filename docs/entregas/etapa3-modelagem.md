@@ -3,11 +3,12 @@
 **Projeto:** Predição de Risco de Acidentes em Rodovias Federais (base PRF + feriados ANBIMA)
 **Código:** [`src/ml/modelagem.py`](../../src/ml/modelagem.py) (arquivo único) · [`src/ml/README.md`](../../src/ml/README.md)
 **Evidências:** [`reports/ml/metrics.csv`](../../reports/ml/metrics.csv) · [`reports/ml/class_distribution.png`](../../reports/ml/class_distribution.png) · [`reports/ml/confusion_matrix.png`](../../reports/ml/confusion_matrix.png) · [`reports/ml/roc_curve.png`](../../reports/ml/roc_curve.png) · [`reports/ml/metric_comparison.png`](../../reports/ml/metric_comparison.png)
+**Dashboard:** páginas 📋 Resultados EDA e 🏆 Resultados Modelagem (`streamlit run app/app.py`)
 **Dataset de entrada:** `gold.dataset_ml` (DuckDB) — 311.259 acidentes, 2022-01-01 a 2026-06-23
 
 > Como ler: todo número deste documento vem de `python -m src.ml.modelagem`, executado sobre a base real — nenhum foi digitado à mão. Reexecutar o comando reproduz exatamente os mesmos números (sem aleatoriedade não controlada: `random_state=42` em todos os modelos).
 
-Esta etapa foi implementada em versão **simples e didática**, propositalmente: um único arquivo, 3 algoritmos, sem busca de hiperparâmetros, sem módulos separados de tuning/interpretabilidade/viés/inferência. O objetivo é comparar algoritmos de Machine Learning num problema de classificação binária, não construir uma arquitetura de produção (ver [`src/ml/README.md`](../../src/ml/README.md) para o que foi deliberadamente deixado de fora).
+Esta etapa foi implementada em versão **simples e didática**, propositalmente: um único arquivo, 4 algoritmos, sem busca de hiperparâmetros, sem módulos separados de tuning/interpretabilidade/viés/inferência. O objetivo é comparar algoritmos de Machine Learning num problema de classificação binária, não construir uma arquitetura de produção (ver [`src/ml/README.md`](../../src/ml/README.md) para o que foi deliberadamente deixado de fora).
 
 ---
 
@@ -38,7 +39,13 @@ Da lista de algoritmos permitida (Regressão Linear, Regressão Logística, Árv
 - **Árvore de Decisão** — captura relações não-lineares e interações entre features sem exigir transformação manual; caminho de decisão auditável.
 - **Random Forest** — ensemble de árvores (bagging); tende a reduzir a variância/overfitting de uma árvore única, ao custo de menor interpretabilidade direta.
 
-KNN e SVM ficaram de fora por razão prática de escala: com ~218 mil registros de treino e ~190 colunas após one-hot, KNN exigiria calcular distância para toda a base de treino a cada previsão, e SVM não escala bem além de dezenas de milhares de linhas — nenhum indício de que superariam os três modelos escolhidos justificaria esse custo neste experimento simples. Redes Neurais ficaram de fora por exigirem mais tuning/dados para justificar a complexidade extra frente aos três modelos mais simples já escolhidos.
+KNN e SVM ficaram de fora por razão prática de escala: com ~218 mil registros de treino e ~190 colunas após one-hot, KNN exigiria calcular distância para toda a base de treino a cada previsão, e SVM não escala bem além de dezenas de milhares de linhas — nenhum indício de que superariam os modelos escolhidos justificaria esse custo neste experimento simples. Redes Neurais ficaram de fora por exigirem mais tuning/dados para justificar a complexidade extra frente aos modelos mais simples já escolhidos.
+
+### Por que um 4º modelo, fora da lista: XGBoost
+
+`Regressão Logística`, `Árvore de Decisão` e `Random Forest` cobrem os três paradigmas centrais da lista (linear, árvore única, ensemble por *bagging*), mas nenhum deles é um ensemble por ***boosting*** — onde cada árvore nova é treinada para corrigir o erro residual das anteriores, em vez de todas votarem em paralelo sobre subamostras independentes. Esse é o motivo de incluir o **XGBoost** como 4º modelo: verificar se um mecanismo de ensemble diferente (boosting sequencial em vez de bagging) consegue romper o teto de ROC-AUC ~0,61–0,62 que os três primeiros modelos atingiram juntos, já que esse teto poderia ser tanto uma limitação do *conteúdo informativo* das features (hipótese da seção 3.7) quanto uma limitação do *tipo* de ensemble usado.
+
+Esta escolha já havia sido feita e revertida antes neste projeto (`docs/decisoes/DECISIONS.md`, D-19/D-20/D-21): uma versão anterior, mais complexa, elegeu `xgboost_tuned` como modelo final, mas a etapa foi depois refeita de forma simplificada usando só os 3 algoritmos da lista da disciplina, justamente porque XGBoost não consta na lista permitida — decisão documentada em D-21. O XGBoost volta agora como **4º modelo desta entrega** (não substitui os três anteriores) para responder de forma direta e reprodutível se um algoritmo de boosting supera os três da lista neste problema — ver D-22 em `DECISIONS.md`.
 
 ---
 
@@ -88,13 +95,14 @@ Para variáveis categóricas: valores ausentes viram a categoria explícita `"na
 
 ## 3.4 Treinamento
 
-Os três modelos foram treinados sobre o **mesmo** conjunto de treino e avaliados sobre os **mesmos** conjuntos de validação e teste, cada um dentro de um `Pipeline` scikit-learn (pré-processamento + modelo). Sem busca de hiperparâmetros: usamos os padrões do scikit-learn com um único ajuste simples e justificado por modelo:
+Os quatro modelos foram treinados sobre o **mesmo** conjunto de treino e avaliados sobre os **mesmos** conjuntos de validação e teste, cada um dentro de um `Pipeline` scikit-learn (pré-processamento + modelo). Sem busca de hiperparâmetros: usamos os padrões de cada biblioteca com um único ajuste simples e justificado por modelo:
 
 | Modelo | Configuração | Por quê |
 |---|---|---|
 | Regressão Logística | `max_iter=1000`, `class_weight="balanced"` | Mais iterações que o padrão (100) para garantir convergência com ~190 colunas após one-hot; peso de classe para compensar o desbalanceamento. |
 | Árvore de Decisão | `max_depth=10`, `min_samples_leaf=50`, `class_weight="balanced"` | Profundidade e folha mínima limitadas para conter overfitting numa árvore única com ~218 mil registros de treino. |
 | Random Forest | `n_estimators=200`, `max_depth=10`, `min_samples_leaf=5`, `class_weight="balanced_subsample"` | Mesma lógica de profundidade da árvore única; `balanced_subsample` recalcula o peso de classe a cada árvore do ensemble. |
+| XGBoost | `n_estimators=200`, `max_depth=6`, `learning_rate=0.1`, `scale_pos_weight=2,5371` | Profundidade mais rasa que a Árvore/Random Forest porque o boosting soma muitas árvores fracas em vez de poucas árvores fortes; `scale_pos_weight` é o equivalente do XGBoost ao `class_weight="balanced"` — calculado como negativos/positivos do treino (217.907 registros, 28,27% grave). |
 
 Todos usam `random_state=42` (reprodutibilidade).
 
@@ -106,13 +114,14 @@ Métricas sobre o conjunto de teste (nunca usado para treinar ou ajustar nada at
 
 | Modelo | Accuracy | Precision | Recall | F1 | ROC-AUC |
 |---|---:|---:|---:|---:|---:|
-| Regressão Logística | 0,5915 | 0,3543 | 0,5630 | **0,4349** | 0,6198 |
+| Regressão Logística | 0,5915 | 0,3543 | **0,5630** | 0,4349 | 0,6198 |
 | Árvore de Decisão | 0,5929 | 0,3515 | 0,5422 | 0,4265 | 0,6118 |
-| **Random Forest** | **0,5960** | **0,3548** | 0,5460 | 0,4301 | **0,6211** |
+| Random Forest | 0,5960 | 0,3548 | 0,5460 | 0,4301 | 0,6211 |
+| **XGBoost** | **0,6001** | **0,3607** | 0,5599 | **0,4388** | **0,6296** |
 
 (Tabela também em [`reports/ml/metrics.csv`](../../reports/ml/metrics.csv); gráficos em `reports/ml/confusion_matrix.png`, `roc_curve.png` e `metric_comparison.png`.)
 
-Como checagem intermediária (não usada para decidir nada, sem tuning nesta etapa), o F1 em **validação** ficou em 0,442 (Regressão Logística), 0,433 (Árvore de Decisão) e 0,441 (Random Forest) — muito próximo do F1 de teste de cada modelo, sem sinal de overfitting relevante entre validação e teste.
+Como checagem intermediária (não usada para decidir nada, sem tuning nesta etapa), o F1 em **validação** ficou em 0,442 (Regressão Logística), 0,433 (Árvore de Decisão), 0,441 (Random Forest) e 0,453 (XGBoost) — muito próximo do F1 de teste de cada modelo (maior gap: XGBoost, 0,453→0,439, ainda assim pequeno), sem sinal de overfitting relevante entre validação e teste em nenhum dos quatro.
 
 Matriz de confusão no teste (46.591 registros, 27,92% grave):
 
@@ -121,26 +130,28 @@ Matriz de confusão no teste (46.591 registros, 27,92% grave):
 | Regressão Logística | 20.237 | 13.347 | 5.684 | 7.323 |
 | Árvore de Decisão | 20.571 | 13.013 | 5.954 | 7.053 |
 | Random Forest | 20.668 | 12.916 | 5.905 | 7.102 |
+| XGBoost | 20.676 | 12.908 | 5.724 | 7.283 |
 
 ---
 
 ## 3.6 Comparação dos modelos
 
-As métricas de Accuracy, Precision e ROC-AUC favorecem levemente o **Random Forest**; Recall e F1 favorecem levemente a **Regressão Logística**. As diferenças são pequenas em todas as métricas — no máximo 0,004 de Accuracy, 0,003 de Precision, 0,021 de Recall, 0,008 de F1 e 0,009 de ROC-AUC entre o melhor e o pior dos três. A **Árvore de Decisão isolada é a mais fraca em toda métrica**, o que é esperado: uma única árvore, mesmo com profundidade limitada para conter overfitting, tem mais variância que um modelo linear regularizado por peso de classe ou que um ensemble de árvores.
+O **XGBoost lidera todas as cinco métricas** de teste — o único dos quatro modelos em que isso acontece. Ainda assim as diferenças continuam pequenas: no máximo 0,009 de Accuracy, 0,009 de Precision, 0,021 de Recall, 0,012 de F1 e 0,018 de ROC-AUC entre o melhor e o pior dos quatro. Entre os três primeiros (sem o XGBoost), o padrão observado antes se repete: Accuracy/Precision/ROC-AUC levemente melhores no Random Forest, Recall levemente melhor na Regressão Logística, e a **Árvore de Decisão isolada é a mais fraca em toda métrica** — esperado, já que uma única árvore, mesmo com profundidade limitada, tem mais variância que um modelo linear regularizado ou que um ensemble.
 
-O ganho do Random Forest sobre a Regressão Logística é pequeno o suficiente para não justificar, sozinho, abrir mão da interpretabilidade quase total da Regressão Logística (coeficientes diretos) em favor de um ensemble de 200 árvores. Essa proximidade é, em si, um resultado relevante: sugere que grande parte do "esforço extra" de um modelo mais complexo (Random Forest) não converte em desempenho real neste problema.
+O ganho do XGBoost sobre a Regressão Logística é real e consistente em todas as métricas (não é ruído de uma medição isolada), mas segue pequeno em termos absolutos (+0,004 de Accuracy, +0,006 de Precision, +0,004 de F1, +0,010 de ROC-AUC) — pequeno o suficiente para que a interpretabilidade quase total da Regressão Logística continue sendo uma alternativa legítima caso o objetivo priorize explicabilidade sobre os últimos pontos de desempenho. O fato de um mecanismo de ensemble diferente (boosting sequencial, que corrige erro residual) superar os três modelos anteriores (bagging/linear/árvore única), mas por margem pequena, reforça a leitura da seção 3.7: o teto de desempenho está mais associado ao **conteúdo informativo das features disponíveis** do que ao tipo de algoritmo ou de ensemble usado — nenhum dos quatro paradigmas testados (linear, árvore única, bagging, boosting) rompe a faixa de ROC-AUC 0,61–0,63.
 
 **Interpretabilidade simples** (importância nativa/coeficientes — associação usada pelo modelo, **não** causalidade):
 
 - **Árvore de Decisão e Random Forest** concordam no núcleo do que mais pesa na decisão: `tipo_pista` (pista Simples vs. Dupla), `latitude` e `longitude` (localização geográfica) dominam o topo da importância, seguidos por `km`, `fase_dia` e a codificação cíclica do horário (`hora_cos`/`hora`). Isso é consistente com o achado da Etapa 2 (EDA) de que gravidade varia por tipo de pista e por região.
-- **Regressão Logística**: os maiores coeficientes em módulo recaem sobre categorias específicas e pouco frequentes de `br` (código da rodovia). Isso é um efeito conhecido de One-Hot Encoding com categorias raras em modelos lineares — poucas observações de uma rodovia específica podem produzir um coeficiente grande e instável, sem necessariamente indicar a variável mais "importante" de forma robusta. Por isso, para uma leitura geral de quais características pesam mais, as árvores (que concordam entre si) são uma fonte mais estável neste experimento do que os coeficientes brutos da Regressão Logística.
+- **XGBoost** também elege `tipo_pista_Simples` como feature isolada mais importante (0,158, à frente de tudo o mais por larga margem), mas distribui o restante da importância de forma mais fragmentada entre `fase_dia`, categorias específicas de `br` e `uf`, e `latitude` — coerente com o modo como o boosting constrói muitas árvores rasas (`max_depth=6`) que dividem o sinal em pedaços menores, em vez das poucas árvores mais profundas do Random Forest.
+- **Regressão Logística**: os maiores coeficientes em módulo recaem sobre categorias específicas e pouco frequentes de `br` (código da rodovia). Isso é um efeito conhecido de One-Hot Encoding com categorias raras em modelos lineares — poucas observações de uma rodovia específica podem produzir um coeficiente grande e instável, sem necessariamente indicar a variável mais "importante" de forma robusta. Por isso, para uma leitura geral de quais características pesam mais, as árvores e o XGBoost (que concordam no topo) são uma fonte mais estável neste experimento do que os coeficientes brutos da Regressão Logística.
 
 ---
 
 ## 3.7 Conclusão
 
-Os três modelos superam claramente o acaso (ROC-AUC entre 0,61 e 0,62, acima de 0,50) mas ficam distantes de uma previsão de alta confiança — o que é esperado, já que as características mais fortemente associadas à gravidade de um acidente (tipo e causa do acidente) foram corretamente excluídas por só existirem depois do desfecho (*data leakage*). Isso confirma parcialmente a hipótese do projeto: **características estruturais e geográficas da rodovia (tipo de pista, localização) e temporais (horário, fase do dia) têm sinal preditivo real sobre a gravidade**, mas esse sinal, sozinho, tem teto moderado.
+Os quatro modelos superam claramente o acaso (ROC-AUC entre 0,61 e 0,63, acima de 0,50) mas ficam distantes de uma previsão de alta confiança — o que é esperado, já que as características mais fortemente associadas à gravidade de um acidente (tipo e causa do acidente) foram corretamente excluídas por só existirem depois do desfecho (*data leakage*). Isso confirma parcialmente a hipótese do projeto: **características estruturais e geográficas da rodovia (tipo de pista, localização) e temporais (horário, fase do dia) têm sinal preditivo real sobre a gravidade**, mas esse sinal, sozinho, tem teto moderado.
 
-A proximidade entre os três modelos — nenhum vence com folga, e a Árvore de Decisão isolada é a única claramente inferior — é o achado mais relevante desta etapa: o gargalo de desempenho está no **conteúdo informativo das features disponíveis**, não na escolha do algoritmo. Um modelo mais simples e interpretável (Regressão Logística) entrega resultado equivalente a um ensemble mais complexo (Random Forest) neste problema.
+A proximidade entre os quatro modelos — o XGBoost vence em todas as métricas, mas por margem pequena, e a Árvore de Decisão isolada continua a única claramente inferior — é o achado mais relevante desta etapa: o gargalo de desempenho está no **conteúdo informativo das features disponíveis**, não na escolha do algoritmo nem no tipo de ensemble. Testamos os quatro paradigmas centrais de classificação (modelo linear, árvore única, ensemble por bagging, ensemble por boosting) e nenhum rompe a faixa de ROC-AUC 0,61–0,63. Um modelo simples e interpretável (Regressão Logística) entrega resultado próximo ao do ensemble mais sofisticado testado (XGBoost) neste problema — a distância existe e é sistemática, mas pequena em unidades absolutas de F1/ROC-AUC.
 
-Como resultado prático, os modelos são adequados como **ferramenta de triagem/priorização relativa** — ajudam a apontar onde a chance de gravidade é maior do que a média — mas não devem ser usados como previsão determinística de um acidente individual. Trabalho futuro que poderia elevar o teto de desempenho (fora do escopo desta etapa, deliberadamente simplificada): features de histórico do trecho (contagem/taxa de acidentes graves anteriores por BR/UF/km) e um encoding mais informativo para `municipio`.
+Como resultado prático, os modelos são adequados como **ferramenta de triagem/priorização relativa** — ajudam a apontar onde a chance de gravidade é maior do que a média — mas não devem ser usados como previsão determinística de um acidente individual. Trabalho futuro que poderia elevar o teto de desempenho (fora do escopo desta etapa, deliberadamente simplificada): features de histórico do trecho (contagem/taxa de acidentes graves anteriores por BR/UF/km), um encoding mais informativo para `municipio`, e busca de hiperparâmetros sobre o XGBoost (não feita aqui — ver D-20 em `DECISIONS.md`, onde o tuning já havia se mostrado de ganho desprezível isoladamente frente ao algoritmo em si).

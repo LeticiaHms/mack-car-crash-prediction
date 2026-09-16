@@ -43,6 +43,7 @@ from sklearn.metrics import (  # noqa: E402
 from sklearn.pipeline import Pipeline  # noqa: E402
 from sklearn.preprocessing import OneHotEncoder, StandardScaler  # noqa: E402
 from sklearn.tree import DecisionTreeClassifier  # noqa: E402
+from xgboost import XGBClassifier  # noqa: E402
 
 _ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # .../src/ml -> raiz
 sys.path.insert(0, _ROOT_DIR)
@@ -163,9 +164,10 @@ def build_preprocessor() -> ColumnTransformer:
 
 
 # ---------------------------------------------------------------------------
-# 5. Modelos — os 3 algoritmos de classificação escolhidos da lista do
-# professor (Regressão Linear e K-Means ficam de fora por não servirem a
-# classificação binária).
+# 5. Modelos — os 3 algoritmos de classificação da lista do professor
+# (Regressão Linear e K-Means ficam de fora por não servirem a classificação
+# binária), mais o XGBoost como 4º modelo (fora da lista original, incluído
+# para comparar um gradient boosting de árvores contra os três anteriores).
 #
 #   - Regressão Logística: modelo linear de referência, rápido e
 #     interpretável via coeficientes.
@@ -173,13 +175,17 @@ def build_preprocessor() -> ColumnTransformer:
 #     transformação manual das features; caminho de decisão auditável.
 #   - Random Forest: ensemble de árvores (bagging), tende a reduzir a
 #     variância/overfitting de uma árvore única.
+#   - XGBoost: ensemble de árvores por boosting (cada árvore corrige o erro
+#     residual das anteriores, em vez de votar em paralelo como o bagging).
+#     Incluído para verificar se um algoritmo de boosting supera o teto de
+#     ~0,62 de ROC-AUC dos três modelos anteriores neste problema.
 #
-# Sem busca de hiperparâmetros: usamos os padrões do scikit-learn com um
+# Sem busca de hiperparâmetros: usamos os padrões de cada biblioteca com um
 # ajuste simples e justificado em cada modelo (profundidade máxima para
 # conter overfitting nos ~218 mil registros de treino, e peso de classe
 # para compensar o desbalanceamento moderado de ~28% de acidentes graves).
 # ---------------------------------------------------------------------------
-def build_models() -> dict:
+def build_models(scale_pos_weight: float) -> dict:
     return {
         "Regressão Logística": LogisticRegression(
             max_iter=1000, class_weight="balanced", random_state=42,
@@ -190,6 +196,11 @@ def build_models() -> dict:
         "Random Forest": RandomForestClassifier(
             n_estimators=200, max_depth=10, min_samples_leaf=5,
             class_weight="balanced_subsample", random_state=42, n_jobs=-1,
+        ),
+        "XGBoost": XGBClassifier(
+            n_estimators=200, max_depth=6, learning_rate=0.1,
+            scale_pos_weight=scale_pos_weight, random_state=42,
+            eval_metric="logloss", n_jobs=-1,
         ),
     }
 
@@ -374,8 +385,10 @@ def main():
     print("   A validação não decide nenhum hiperparâmetro (sem tuning nesta etapa) — é só uma checagem "
           "intermediária de generalização; a avaliação final usa exclusivamente o teste.")
 
-    print("\n4) Treinando os 3 modelos (pré-processamento ajustado só no treino)...")
-    models = build_models()
+    print("\n4) Treinando os 4 modelos (pré-processamento ajustado só no treino)...")
+    scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
+    print(f"   scale_pos_weight (XGBoost) = {scale_pos_weight:.4f} (negativos/positivos do treino)")
+    models = build_models(scale_pos_weight)
     results = train_and_evaluate(models, X_train, y_train, X_val, y_val, X_test, y_test)
 
     print("\n5) Gerando gráficos em reports/ml/...")

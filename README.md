@@ -40,7 +40,7 @@ CSV / XLS (data/raw/)
 └─────────────────────────────────────────────────────────────────────┘
         │
         ▼
-   Streamlit (EDA/qualidade/modelagem) · src/ml/*.py (treino, tuning, avaliação, inferência)
+   Streamlit (EDA/qualidade/modelagem) · src/ml/modelagem.py (split, treino, avaliação)
 ```
 
 `src/database/connection.py` centraliza a conexão com o banco; `src/jobs/build_database.py` é o único orquestrador que reconstrói tudo, na ordem raw → bronze → silver → gold (ver seção 🏗️ Arquitetura de dados abaixo).
@@ -74,7 +74,7 @@ CSV / XLS (data/raw/)
 | **Coleta de dados** | Etapa 1 | ✅ | CSVs anuais da PRF (2022–2026) + calendário de feriados, com dicionário de dados e critérios de seleção — [`etapa1-coleta.md`](docs/entregas/etapa1-coleta.md) |
 | **Pré-processamento** | Etapa 1 | ✅ | Limpeza, tipagem, deduplicação e validação → camadas Bronze/Silver no DuckDB — [`etapa1-pre-processamento.md`](docs/entregas/etapa1-pre-processamento.md) |
 | **Análise Exploratória** | Etapa 2 | ✅ | Distribuições, padrões, sazonalidade, anomalias, correlações e mapa de *data leakage*, com dashboard interativo — [`etapa2-eda.md`](docs/entregas/etapa2-eda.md) |
-| **Construção de Modelos** | Etapa 3 | ✅ | Split temporal 70/15/15, 5 modelos (baseline + Regressão Logística, Árvore, Random Forest, XGBoost), tuning, avaliação por **F1/Recall/Precision/ROC-AUC/PR-AUC** da classe grave, interpretabilidade e análise de viés — [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) |
+| **Construção de Modelos** | Etapa 3 | ✅ | Split temporal 70/15/15, 3 modelos de classificação (Regressão Logística, Árvore de Decisão, Random Forest), avaliação por **Accuracy/Precision/Recall/F1/ROC-AUC** (conjunto de teste) e interpretabilidade simples — [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) |
 
 Coleta e pré-processamento compõem juntos a Etapa 1 da disciplina — daí o prefixo `etapa1-` nos dois documentos.
 
@@ -115,11 +115,10 @@ Regenera `reports/eda/eda_results.json` e as 26 tabelas de `reports/eda/tables/`
 ### 3. (Opcional) Retreinar os modelos da Etapa 3
 
 ```bash
-python -m src.ml.run_all               # split, treino, tuning, avaliação final, interpretabilidade
-python -m src.ml.feature_selection_report   # tabela de seleção de features (reports/ml/tables/feature_selection.csv)
+python -m src.ml.modelagem
 ```
 
-Regenera tudo em `reports/ml/` (tabelas, gráficos e os `.joblib` em `reports/ml/models/`, exceto `random_forest.joblib` — 104MB, fora do git, regenerável só com `python -m src.ml.train`). Leva ~4 min (a maior parte é o Random Forest, que não entra no tuning — ver `docs/entregas/etapa3-modelagem.md`). A página 🤖 Modelagem do dashboard **não** depende deste passo em tempo real — ela lê os artefatos já gerados, nunca retreina ao vivo.
+Regenera `reports/ml/metrics.csv` e os 4 gráficos (`class_distribution.png`, `confusion_matrix.png`, `roc_curve.png`, `metric_comparison.png`). Leva menos de 1 minuto. A página 🤖 Modelagem do dashboard **não** depende deste passo em tempo real — ela lê os artefatos já gerados, nunca retreina ao vivo.
 
 ### 4. Subir o dashboard
 
@@ -170,7 +169,7 @@ Uma página quebrada não derruba as outras no navegador — o erro só aparece 
 | **Qualidade e Estrutura** | 🧹 Qualidade dos Dados · 🚨 Anomalias · ✂️ Segmentação |
 | **Análise Exploratória** | 📊 Distribuições · 🎯 Gravidade · 📈 Tendências · 🔄 Sazonalidade · 🔗 Correlações · 🗺️ Geografia |
 | **Preparação para ML** | 🧪 Validação Estatística · 🧠 Features ML |
-| **Modelagem** | 🤖 Modelagem (comparação de modelos, tuning, interpretabilidade, viés e simulador de risco) |
+| **Modelagem** | 🤖 Modelagem (comparação de modelos e interpretabilidade simples) |
 
 Os **filtros globais da sidebar** (ano, UF, gravidade, tipo de acidente, rodovia, período do dia, clima, tipo de pista) valem para a maioria das páginas — as que avaliam qualidade sobre a base inteira (🧹 Qualidade dos Dados, 💡 Insights e Hipóteses) ignoram o filtro de propósito, para não esconder o problema que se quer encontrar.
 
@@ -242,11 +241,8 @@ src/
   eda/
     utils.py                 # camada analítica compartilhada (DuckDB + estatística)
     run.py                   # gera os artefatos reproduzíveis da EDA
-  ml/                        # Etapa 3 — split, pré-processamento, modelos, tuning, avaliação, inferência
-    dataset.py                # carga da Gold + split temporal 70/15/15
-    preprocessing.py          # ColumnTransformer único (fit só no treino)
-    models.py                 # registro dos modelos (baseline + candidatos) e grids de tuning
-    train.py / tune.py / evaluate.py / interpret.py / plots.py / inference.py / run_all.py
+  ml/                        # Etapa 3 — modelagem preditiva simplificada
+    modelagem.py               # carga, split, pré-processamento, treino, avaliação e gráficos (arquivo único)
 app/                        # aplicação Streamlit (independente do pipeline)
   app.py                     # roteador (st.navigation) + página inicial
   common.py                  # conexão (somente leitura), cache e filtros globais
@@ -257,7 +253,7 @@ reports/                     # resultados gerados (nunca código-fonte)
   data_quality/              # relatórios de validação do pipeline
   gold/                      # dicionário de features + relatório da Gold
   eda/                       # eda_results.json + 26 tabelas CSV
-  ml/                        # tables/ (métricas, comparações, tuning, viés) + figures/ + models/ (.joblib)
+  ml/                        # metrics.csv + 4 gráficos (distribuição, matriz de confusão, ROC, comparação)
 docs/                        # documentação — ver seção 📚 Documentação
 scripts/                     # utilitários de verificação (smoke test, setup do ambiente)
 ```
@@ -274,7 +270,7 @@ Não há pasta `archive/`: a auditoria que precedeu esta reorganização não en
 |---|---|
 | [`docs/entregas/`](docs/entregas/) | Relatório técnico entregue em cada etapa da disciplina (coleta, pré-processamento, EDA, modelagem) |
 | [`docs/evidencias/`](docs/evidencias/) | Logs brutos da última execução real do pipeline (`preprocess_run.log`, `verify_run.log`) |
-| [`docs/decisoes/DECISIONS.md`](docs/decisoes/DECISIONS.md) | Decisões técnicas (D-01…D-20), com as alternativas descartadas e o porquê |
+| [`docs/decisoes/DECISIONS.md`](docs/decisoes/DECISIONS.md) | Decisões técnicas (D-01…D-21), com as alternativas descartadas e o porquê |
 | [`docs/analises/`](docs/analises/) | `EDA.md` (documento narrativo da exploração), `ANALYSIS_LOG.md` (achado → método → resultado → limitação) e `DATA_QUALITY.md` (relatório de qualidade) |
 | [`docs/specs/`](docs/specs/) | Especificação original do projeto e do pré-processamento (`spec.md`, `requirements.md`, `design.md`, `tasks.md`) — planejamento anterior à implementação, mantido como referência histórica |
 | [`docs/GLOSSARIO.md`](docs/GLOSSARIO.md) | Termos técnicos (z-score, qui-quadrado, Cramér's V, intervalo de confiança, data leakage…) com exemplos desta base |
@@ -285,11 +281,11 @@ Quem estiver chegando agora no projeto: comece pelo [`GLOSSARIO.md`](docs/GLOSSA
 
 ## 🚀 Próximas etapas
 
-A Etapa 3 (Construção de Modelos) está concluída — ver [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) para o relatório completo (split, modelos, tuning, interpretabilidade, viés) e a página 🤖 Modelagem do dashboard. Modelo final: XGBoost com tuning (`reports/ml/models/xgboost_tuned.joblib`), ROC-AUC 0,63 / F1 0,44 no teste. Pendências identificadas para uma próxima iteração (detalhadas na seção 10 do relatório):
+A Etapa 3 (Construção de Modelos) está concluída, em versão simplificada e didática — ver [`etapa3-modelagem.md`](docs/entregas/etapa3-modelagem.md) para o relatório completo (split, modelos, métricas, interpretabilidade) e a página 🤖 Modelagem do dashboard. Nenhum modelo supera claramente os demais: os três (Regressão Logística, Árvore de Decisão, Random Forest) ficam próximos em todas as métricas, com ROC-AUC ~0,62 e F1 ~0,43–0,44 no teste — sinal de que o teto de desempenho está no conteúdo informativo das features disponíveis, não no algoritmo escolhido. Possíveis próximos passos, fora do escopo desta etapa:
 
-- Features de histórico do trecho (contagem/taxa de acidentes graves por BR/UF/km em janelas anteriores ao período previsto) — maior potencial de ganho de desempenho identificado;
-- Calibração de limiar por grupo (UF, no mínimo) — o modelo atual tem recall entre 9,5% e 92,8% conforme a UF, por usar um único limiar global (D-20/seção 12 do relatório);
-- Target encoding suavizado para `municipio` e calibração de probabilidade antes de qualquer uso operacional das faixas de risco.
+- Features de histórico do trecho (contagem/taxa de acidentes graves por BR/UF/km em janelas anteriores ao período previsto);
+- Encoding mais rico para `municipio` (descartado nesta etapa por simplicidade);
+- Calibração de limiar/probabilidade antes de qualquer uso operacional.
 
 As hipóteses formuladas para orientar essa etapa (H-01 a H-06, cada uma com critério de confirmação/refutação) estão na página 💡 Insights e Hipóteses do dashboard, e são citadas pontualmente em [`docs/analises/ANALYSIS_LOG.md`](docs/analises/ANALYSIS_LOG.md).
 
@@ -297,7 +293,7 @@ As hipóteses formuladas para orientar essa etapa (H-01 a H-06, cada uma com cri
 
 ## 🛠️ Tecnologias
 
-`Python` · `Pandas` · `DuckDB` · `Scikit-learn` · `XGBoost` · `Matplotlib` · `Streamlit` · `Plotly` · `SciPy` · `Machine Learning`
+`Python` · `Pandas` · `DuckDB` · `Scikit-learn` · `Matplotlib` · `Streamlit` · `Plotly` · `SciPy` · `Machine Learning`
 
 ---
 

@@ -8,6 +8,4 @@ scikit-learn
 streamlit
 plotly
 pytest
-xgboost
 matplotlib
-joblib
